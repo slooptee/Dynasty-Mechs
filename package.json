@@ -13,11 +13,14 @@
     "format": "prettier -w ."
   },
   "devDependencies": {
-    "vite": "^5.3.0",
-    "vitest": "^2.0.0",
-    "jsdom": "^24.0.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.1.0",
-    "prettier": "^3.3.0"
+    "jsdom": "^24.0.0",
+    "prettier": "^3.3.0",
+    "vite": "^5.3.0",
+    "vitest": "^2.0.0"
+  },
+  "dependencies": {
+    "pixi.js": "^8.12.0"
   }
 }

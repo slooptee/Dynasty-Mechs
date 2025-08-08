@@ -1,0 +1,17 @@
+body { font-family: sans-serif; background: #181c20; color: #eee; margin: 0; }
+#app { max-width: 900px; margin: 2em auto; background: #23272e; border-radius: 8px; padding: 2em; }
+.main-menu { display: flex; gap: 1em; justify-content: center; margin-bottom: 2em; }
+button { font-size: 1.2em; padding: 0.5em 1.5em; border-radius: 6px; border: none; background: #3a8dde; color: #fff; cursor: pointer; }
+button:hover { background: #2563a6; }
+.battle-grid { display: grid; grid-template-columns: repeat(8, 40px); grid-template-rows: repeat(6, 40px); gap: 2px; background: #111; margin: 0 auto 2em auto; }
+.cell { width: 40px; height: 40px; background: #222; border-radius: 4px; display: flex; align-items: center; justify-content: center; position: relative; }
+.bot { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: bold; position: absolute; top: 2px; left: 2px; }
+.bot.player { background: #4caf50; color: #fff; }
+.bot.enemy { background: #e53935; color: #fff; }
+@keyframes flash {
+	0% { background: #fff700; }
+	100% { background: #222; }
+}
+#battle-modal {
+	box-shadow: 0 0 40px #000a;
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Dynasty Mechs",
+  "short_name": "DynastyMechs",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#181c20",
+  "theme_color": "#23272e",
+  "description": "Three Kingdoms Autobattler",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "splash_pages": [
+    {
+      "src": "splash-512x1024.png",
+      "sizes": "512x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -7,9 +7,11 @@ import { GameState } from '../core/GameState.js';
 import { UpgradeManager } from '../core/UpgradeManager.js';
 import { Bot } from '../core/Bot.js';
 import { MechCustomizationSystem } from '../features/mechCustomization.js';
+import { MultiplayerSystem } from '../features/multiplayerSystem.js';
 
 const upgradeManager = new UpgradeManager();
 const mechCustomization = new MechCustomizationSystem();
+const multiplayerSystem = new MultiplayerSystem();
 
 export function mountUI(container) {
   container.innerHTML = '';
@@ -39,6 +41,17 @@ export function mountUI(container) {
     window._customOverlay = customOverlay;
   };
   menu.appendChild(quickBtn);
+  
+  // Multiplayer Battle button (NEW!)
+  const multiplayerBtn = document.createElement('button');
+  multiplayerBtn.textContent = 'Multiplayer Battle';
+  multiplayerBtn.style.background = '#e53e3e';
+  multiplayerBtn.style.border = '2px solid #fc8181';
+  multiplayerBtn.onclick = () => {
+    showMultiplayerModal(container);
+  };
+  menu.appendChild(multiplayerBtn);
+  
   // Upgrade button
     const upgradeBtn = document.createElement('button');
     upgradeBtn.textContent = 'Upgrade Bots';
@@ -245,4 +258,115 @@ function showMechCustomizationModal(parentContainer) {
   if (GameState.player.bots.length > 0) {
     botButtons.firstChild.click();
   }
+}
+
+function showMultiplayerModal(parentContainer) {
+  // Create modal
+  const modal = document.createElement('div');
+  modal.style.position = 'fixed';
+  modal.style.top = '0';
+  modal.style.left = '0';
+  modal.style.width = '100vw';
+  modal.style.height = '100vh';
+  modal.style.background = 'rgba(0,0,0,0.95)';
+  modal.style.zIndex = '2000';
+  modal.style.overflow = 'auto';
+  modal.style.padding = '20px';
+  
+  // Modal content
+  const content = document.createElement('div');
+  content.style.maxWidth = '800px';
+  content.style.margin = '0 auto';
+  content.style.background = '#1a202c';
+  content.style.borderRadius = '10px';
+  content.style.position = 'relative';
+  content.style.minHeight = '500px';
+  
+  // Close button
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.style.position = 'absolute';
+  closeBtn.style.top = '10px';
+  closeBtn.style.right = '15px';
+  closeBtn.style.background = 'none';
+  closeBtn.style.border = 'none';
+  closeBtn.style.color = 'white';
+  closeBtn.style.fontSize = '30px';
+  closeBtn.style.cursor = 'pointer';
+  closeBtn.onclick = () => {
+    multiplayerSystem.disconnect();
+    parentContainer.removeChild(modal);
+  };
+  content.appendChild(closeBtn);
+  
+  // Multiplayer lobby area
+  const lobbyArea = document.createElement('div');
+  lobbyArea.className = 'multiplayer-lobby';
+  lobbyArea.style.padding = '20px';
+  content.appendChild(lobbyArea);
+  
+  // Render initial lobby
+  multiplayerSystem.renderMultiplayerLobby(lobbyArea);
+  
+  // Set up event listeners for multiplayer events
+  const handlePlayerJoined = (event) => {
+    console.log('Player joined:', event.detail);
+    // Re-render lobby to show new player
+    multiplayerSystem.renderMultiplayerLobby(lobbyArea);
+  };
+  
+  const handleStartBattle = (event) => {
+    console.log('Starting multiplayer battle...', event.detail);
+    // Close modal and start battle
+    parentContainer.removeChild(modal);
+    
+    // Initialize sample bots if none exist
+    if (!GameState.player || !GameState.player.bots || GameState.player.bots.length === 0) {
+      if (!GameState.player) GameState.player = {};
+      GameState.player.bots = [
+        new Bot({ id: 'mp1', team: 'player', name: 'Guan Yu', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 2 }),
+        new Bot({ id: 'mp2', team: 'player', name: 'Zhang Fei', type: 'defender', faction: 'Shu', class: 'Defender', health: 26, maxHealth: 26, attack: 6, defense: 5, speed: 2, x: 1, y: 3 })
+      ];
+    }
+    
+    // Start multiplayer battle
+    const battleState = multiplayerSystem.startMultiplayerBattle(GameState.player.bots);
+    
+    // Clear and start battle
+    parentContainer.innerHTML = '';
+    const battleDiv = document.createElement('div');
+    battleDiv.id = 'multiplayer-battle-container';
+    parentContainer.appendChild(battleDiv);
+    
+    // Add multiplayer indicator
+    const mpIndicator = document.createElement('div');
+    mpIndicator.style.position = 'absolute';
+    mpIndicator.style.top = '10px';
+    mpIndicator.style.left = '10px';
+    mpIndicator.style.background = '#e53e3e';
+    mpIndicator.style.color = 'white';
+    mpIndicator.style.padding = '5px 10px';
+    mpIndicator.style.borderRadius = '15px';
+    mpIndicator.style.fontSize = '12px';
+    mpIndicator.style.zIndex = '100';
+    mpIndicator.textContent = `🌐 MULTIPLAYER • Room: ${multiplayerSystem.roomId}`;
+    battleDiv.appendChild(mpIndicator);
+    
+    startBattle(battleDiv);
+  };
+  
+  // Add event listeners
+  document.addEventListener('multiplayer:player-joined', handlePlayerJoined);
+  document.addEventListener('multiplayer:start-multiplayer-battle', handleStartBattle);
+  
+  // Cleanup function when modal is closed
+  const originalClose = closeBtn.onclick;
+  closeBtn.onclick = () => {
+    document.removeEventListener('multiplayer:player-joined', handlePlayerJoined);
+    document.removeEventListener('multiplayer:start-multiplayer-battle', handleStartBattle);
+    originalClose();
+  };
+  
+  modal.appendChild(content);
+  parentContainer.appendChild(modal);
 }

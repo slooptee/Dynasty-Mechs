@@ -76,10 +76,14 @@ export class SynergyManager {
       const count = factionCounts[faction];
       const synergy = synergyConfig.factions[faction];
       if (synergy) {
+        let activeBonus = null;
         for (const bonus of synergy.bonuses) {
           if (count >= bonus.count) {
-            activeSynergies.factions[faction] = bonus;
+            activeBonus = bonus;
           }
+        }
+        if (activeBonus) {
+            activeSynergies.factions[faction] = { ...activeBonus, actualCount: count };
         }
       }
     }
@@ -88,10 +92,14 @@ export class SynergyManager {
       const count = classCounts[botClass];
       const synergy = synergyConfig.classes[botClass];
       if (synergy) {
+        let activeBonus = null;
         for (const bonus of synergy.bonuses) {
           if (count >= bonus.count) {
-            activeSynergies.classes[botClass] = bonus;
+            activeBonus = bonus;
           }
+        }
+        if (activeBonus) {
+            activeSynergies.classes[botClass] = { ...activeBonus, actualCount: count };
         }
       }
     }
@@ -109,34 +117,29 @@ export class SynergyManager {
       bot.damageReduction = 0;
       bot.crit = false;
       bot.healBonus = 0;
+      bot.attackAgainChance = 0;
     });
 
-    for (const faction in activeSynergies.factions) {
-      const bonus = activeSynergies.factions[faction];
-      bonus.effects.forEach(effect => {
-        bots.forEach(bot => {
-          if (typeof bot[effect.stat] === 'number') {
-            bot[effect.stat] += effect.value;
-          } else {
-            bot[effect.stat] = effect.value;
-          }
+    const applyEffects = (bonus, filter) => {
+        bonus.effects.forEach(effect => {
+            bots.forEach(bot => {
+                if (filter(bot)) {
+                    if (typeof bot[effect.stat] === 'number') {
+                        bot[effect.stat] += effect.value;
+                    } else {
+                        bot[effect.stat] = effect.value;
+                    }
+                }
+            });
         });
-      });
+    };
+
+    for (const faction in activeSynergies.factions) {
+        applyEffects(activeSynergies.factions[faction], () => true);
     }
 
     for (const botClass in activeSynergies.classes) {
-      const bonus = activeSynergies.classes[botClass];
-      bonus.effects.forEach(effect => {
-        bots.forEach(bot => {
-          if (bot.class === botClass) {
-            if (typeof bot[effect.stat] === 'number') {
-              bot[effect.stat] += effect.value;
-            } else {
-              bot[effect.stat] = effect.value;
-            }
-          }
-        });
-      });
+        applyEffects(activeSynergies.classes[botClass], (bot) => bot.class === botClass);
     }
 
     // Apply tile effects

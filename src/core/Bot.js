@@ -37,9 +37,6 @@ export class Bot {
 
   assignPilot(pilot) {
     this.pilot = pilot;
-    if (this.pilot.ability) {
-      this.pilot.ability(this);
-    }
   }
 
   get finalAttack() {
@@ -57,12 +54,14 @@ export class Bot {
     return this.speed + this.speedBonus + itemBonus;
   }
 
-  takeDamage(amount, attacker) {
+  takeDamage(amount, attacker, isReflection = false) {
     if (Math.random() < this.dodge) return; // Dodge the attack
 
-    const damageReflect = this.items.reduce((acc, item) => acc + (item.effects.damageReflect || 0), 0);
-    if (attacker && damageReflect > 0) {
-        attacker.takeDamage(amount * damageReflect);
+    if (!isReflection) {
+        const damageReflect = this.items.reduce((acc, item) => acc + (item.effects.damageReflect || 0), 0);
+        if (attacker && damageReflect > 0) {
+            attacker.takeDamage(amount * damageReflect, this, true);
+        }
     }
 
     let dmg = amount * (1 - this.damageReduction);
@@ -80,6 +79,14 @@ export class Bot {
     const finalHeal = amount * (1 + this.healBonus);
     this.health = Math.min(this.maxHealth, this.health + finalHeal);
   }
+
+  applyLifesteal(damage) {
+    const lifesteal = this.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+    if (lifesteal > 0) {
+        this.heal(damage * lifesteal);
+    }
+  }
+
   canAct() {
     return this.alive;
   }
@@ -123,10 +130,7 @@ export class Bot {
           if (enemy) {
             const dmg = Math.round(this.finalAttack * 0.8);
             enemy.takeDamage(dmg, this);
-            const lifesteal = this.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
-            if (lifesteal > 0) {
-                this.heal(dmg * lifesteal);
-            }
+            this.applyLifesteal(dmg);
             hit = true;
           }
         });
@@ -142,10 +146,7 @@ export class Bot {
         if (target) {
             const dmg = this.finalAttack + 2;
             target.takeDamage(dmg, this);
-            const lifesteal = this.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
-            if (lifesteal > 0) {
-                this.heal(dmg * lifesteal);
-            }
+            this.applyLifesteal(dmg);
           this.abilityCooldown = 4;
           return { action: 'snipe', target };
         }

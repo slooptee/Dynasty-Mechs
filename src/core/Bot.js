@@ -1,10 +1,12 @@
 // Bot class for battle
 export class Bot {
-  constructor({ id, team, name, type, health, maxHealth, attack, defense, speed, x, y }) {
+  constructor({ id, team, name, type, health, maxHealth, attack, defense, speed, x, y, faction, class: botClass }) {
     this.id = id;
     this.team = team;
     this.name = name;
     this.type = type;
+    this.faction = faction;
+    this.class = botClass;
     this.health = health;
     this.maxHealth = maxHealth;
     this.attack = attack;
@@ -16,11 +18,35 @@ export class Bot {
     // Ability state
     this.shielded = false; // Defender
     this.abilityCooldown = 0;
+    // Synergy bonuses
+    this.speedBonus = 0;
+    this.defenseBonus = 0;
+    this.attackBonus = 0;
+    this.dodge = 0;
+    this.damageReduction = 0;
+    this.crit = false;
+    this.healBonus = 0;
+    this.attackAgainChance = 0;
   }
+
+  get finalAttack() {
+    return this.attack + this.attackBonus;
+  }
+
+  get finalDefense() {
+    return this.defense + this.defenseBonus;
+  }
+
+  get finalSpeed() {
+    return this.speed + this.speedBonus;
+  }
+
   takeDamage(amount) {
-    let dmg = amount;
+    if (Math.random() < this.dodge) return; // Dodge the attack
+
+    let dmg = amount * (1 - this.damageReduction);
     if (this.shielded) {
-      dmg = Math.ceil(amount / 2);
+      dmg = Math.ceil(dmg / 2);
       this.shielded = false; // shield breaks after one hit
     }
     this.health -= dmg;
@@ -30,7 +56,8 @@ export class Bot {
     }
   }
   heal(amount) {
-    this.health = Math.min(this.maxHealth, this.health + amount);
+    const finalHeal = amount * (1 + this.healBonus);
+    this.health = Math.min(this.maxHealth, this.health + finalHeal);
   }
   canAct() {
     return this.alive;
@@ -73,7 +100,7 @@ export class Bot {
           const ny = this.y + dy;
           const enemy = enemies.find(e => e.alive && e.x === nx && e.y === ny);
           if (enemy) {
-            enemy.takeDamage(Math.round(this.attack * 0.8));
+            enemy.takeDamage(Math.round(this.finalAttack * 0.8));
             hit = true;
           }
         });
@@ -87,7 +114,7 @@ export class Bot {
         // Long-range attack: hit any enemy, higher cooldown
         const target = enemies.filter(e => e.alive).sort((a, b) => a.health - b.health)[0];
         if (target) {
-          target.takeDamage(this.attack + 2);
+          target.takeDamage(this.finalAttack + 2);
           this.abilityCooldown = 4;
           return { action: 'snipe', target };
         }

@@ -15,21 +15,23 @@ import { Bot } from '../core/Bot.js';
 import { BehaviorTreeAI } from '../ai/AIController.js';
 import { emit } from '../core/eventBus.js';
 import { SkinManager } from '../cosmetics/SkinManager.js';
+import { SynergyManager } from '../core/SynergyManager.js';
 
 const skinManager = new SkinManager();
+const synergyManager = new SynergyManager();
 
 function createBots() {
-  // Player bots: assault, medic, scout
+  // Player bots
   GameState.player.bots = [
-    new Bot({ id: 'p1', team: 'player', name: 'Alpha', type: 'assault', health: 20, maxHealth: 20, attack: 6, defense: 2, speed: 3, x: 1, y: 2 }),
-    new Bot({ id: 'p2', team: 'player', name: 'Bravo', type: 'medic', health: 16, maxHealth: 16, attack: 4, defense: 1, speed: 4, x: 1, y: 4 }),
-    new Bot({ id: 'p3', team: 'player', name: 'Scout', type: 'scout', health: 14, maxHealth: 14, attack: 5, defense: 1, speed: 6, x: 1, y: 3 })
+    new Bot({ id: 'p1', team: 'player', name: 'Guan Yu', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 2 }),
+    new Bot({ id: 'p2', team: 'player', name: 'Liu Bei', type: 'medic', faction: 'Shu', class: 'Medic', health: 18, maxHealth: 18, attack: 4, defense: 2, speed: 4, x: 1, y: 4 }),
+    new Bot({ id: 'p3', team: 'player', name: 'Xiahou Dun', type: 'scout', faction: 'Wei', class: 'Scout', health: 16, maxHealth: 16, attack: 6, defense: 2, speed: 6, x: 1, y: 3 })
   ];
-  // Enemy bots: defender, sniper, engineer
+  // Enemy bots
   GameState.enemy.bots = [
-    Object.assign(new Bot({ id: 'e1', team: 'enemy', name: 'Omega', type: 'defender', health: 22, maxHealth: 22, attack: 5, defense: 4, speed: 2, x: 8, y: 2 }), { personality: 'defensive' }),
-    Object.assign(new Bot({ id: 'e2', team: 'enemy', name: 'Delta', type: 'sniper', health: 16, maxHealth: 16, attack: 8, defense: 1, speed: 4, x: 8, y: 4 }), { personality: 'aggressive' }),
-    Object.assign(new Bot({ id: 'e3', team: 'enemy', name: 'Engi', type: 'engineer', health: 18, maxHealth: 18, attack: 5, defense: 3, speed: 2, x: 8, y: 3 }), { personality: 'opportunist' })
+    Object.assign(new Bot({ id: 'e1', team: 'enemy', name: 'Cao Cao', type: 'defender', faction: 'Wei', class: 'Defender', health: 24, maxHealth: 24, attack: 6, defense: 4, speed: 2, x: 8, y: 2 }), { personality: 'defensive' }),
+    Object.assign(new Bot({ id: 'e2', team: 'enemy', name: 'Sun Quan', type: 'sniper', faction: 'Wu', class: 'Sniper', health: 18, maxHealth: 18, attack: 8, defense: 1, speed: 4, x: 8, y: 4 }), { personality: 'aggressive' }),
+    Object.assign(new Bot({ id: 'e3', team: 'enemy', name: 'Zhuge Liang', type: 'engineer', faction: 'Shu', class: 'Engineer', health: 20, maxHealth: 20, attack: 5, defense: 3, speed: 2, x: 8, y: 3 }), { personality: 'opportunist' })
   ];
 }
 
@@ -119,7 +121,7 @@ function renderGrid(container) {
   const statsDiv = document.createElement('div');
   statsDiv.style.fontSize = '0.7em';
   statsDiv.style.textAlign = 'center';
-  statsDiv.textContent = `HP:${bot.health}/${bot.maxHealth} ATK:${bot.attack} DEF:${bot.defense} ${bot.type}`;
+  statsDiv.textContent = `HP:${bot.health}/${bot.maxHealth} ATK:${bot.finalAttack} DEF:${bot.finalDefense} SPD:${bot.finalSpeed}`;
   botEl.appendChild(statsDiv);
     // Position in grid
     const selector = `.cell[data-x="${bot.x}"][data-y="${bot.y}"]`;
@@ -157,7 +159,11 @@ function renderGrid(container) {
         e.stopPropagation();
         // Attack with type advantage
         const mult = getTypeMultiplier(selectedBot, bot);
-        const dmg = Math.round(selectedBot.attack * mult);
+        let dmg = Math.round(selectedBot.finalAttack * mult);
+        if (selectedBot.crit) {
+          dmg *= 2;
+          selectedBot.crit = false; // Crit is consumed
+        }
         bot.takeDamage(dmg);
         lastAttackCell = { x: bot.x, y: bot.y };
         // PixiJS hit effect
@@ -172,6 +178,36 @@ function renderGrid(container) {
     }
   });
   container.appendChild(grid);
+
+  // Synergy UI
+  const synergyContainer = document.createElement('div');
+  synergyContainer.className = 'synergy-container';
+  const playerSynergies = synergyManager.calculateSynergies(GameState.player.bots.filter(b => b.alive));
+  const enemySynergies = synergyManager.calculateSynergies(GameState.enemy.bots.filter(b => b.alive));
+
+  const createSynergyList = (title, synergies) => {
+    const list = document.createElement('div');
+    const titleEl = document.createElement('h4');
+    titleEl.textContent = title;
+    list.appendChild(titleEl);
+    for (const faction in synergies.factions) {
+      const syn = synergies.factions[faction];
+      const el = document.createElement('div');
+      el.textContent = `${faction} (${syn.count}): ${syn.description}`;
+      list.appendChild(el);
+    }
+    for (const botClass in synergies.classes) {
+      const syn = synergies.classes[botClass];
+      const el = document.createElement('div');
+      el.textContent = `${botClass} (${syn.count}): ${syn.description}`;
+      list.appendChild(el);
+    }
+    return list;
+  };
+
+  synergyContainer.appendChild(createSynergyList('Player Synergies', playerSynergies));
+  synergyContainer.appendChild(createSynergyList('Enemy Synergies', enemySynergies));
+  container.appendChild(synergyContainer);
 }
 
 function checkVictory() {
@@ -255,7 +291,15 @@ function enemyTurn(container) {
       }
       const target = GameState.player.bots.filter(b => b.alive).sort((a, b) => a.health - b.health)[0];
       if (target) {
-        target.takeDamage(bot.attack);
+        let dmg = bot.finalAttack;
+        if (bot.crit) {
+          dmg *= 2;
+          bot.crit = false;
+        }
+        target.takeDamage(dmg);
+        if (bot.attackAgainChance && Math.random() < bot.attackAgainChance) {
+          target.takeDamage(dmg); // Attack again
+        }
         acted = true;
         continue;
       }
@@ -267,7 +311,12 @@ function enemyTurn(container) {
       }
       const target = GameState.player.bots.filter(b => b.alive).sort((a, b) => a.health - b.health)[0];
       if (target) {
-        target.takeDamage(bot.attack);
+        let dmg = bot.finalAttack;
+        if (bot.crit) {
+          dmg *= 2;
+          bot.crit = false;
+        }
+        target.takeDamage(dmg);
         acted = true;
         continue;
       }

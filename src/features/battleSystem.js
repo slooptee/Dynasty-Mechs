@@ -67,6 +67,24 @@ let selectedBot = null;
 let validMoves = [];
 let validAttacks = [];
 let lastAttackCell = null;
+
+function updateBattleUI(container) {
+  renderGrid(container);
+  if (GameState.battle.phase === 'player') {
+    playerTurn(container);
+  } else {
+    enemyTurn(container);
+  }
+}
+
+export function startBattle(container) {
+    battlefieldManager.generateBattlefield();
+    createBots();
+    GameState.battle.phase = 'player';
+    on('battle:render', () => updateBattleUI(container));
+    updateBattleUI(container);
+}
+
 function renderGrid(container) {
   // Mount PixiJS overlay if not present
   let overlay = container.querySelector('.pixi-overlay');
@@ -258,13 +276,13 @@ function renderGrid(container) {
     for (const faction in synergies.factions) {
       const syn = synergies.factions[faction];
       const el = document.createElement('div');
-      el.textContent = `${faction} (${syn.count}): ${syn.description}`;
+      el.textContent = `${faction} (${syn.actualCount}): ${syn.description}`;
       list.appendChild(el);
     }
     for (const botClass in synergies.classes) {
       const syn = synergies.classes[botClass];
       const el = document.createElement('div');
-      el.textContent = `${botClass} (${syn.count}): ${syn.description}`;
+      el.textContent = `${botClass} (${syn.actualCount}): ${syn.description}`;
       list.appendChild(el);
     }
     return list;
@@ -339,12 +357,28 @@ function playerTurn(container) {
     validAttacks = [];
     GameState.battle.phase = 'enemy';
     emit('battle:render');
-    enemyTurn(container);
   };
   container.appendChild(endBtn);
 }
 
 const ai = new BehaviorTreeAI();
+
+function performAttack(bot, target) {
+    let dmg = bot.finalAttack;
+    if (bot.crit) {
+        dmg *= 2;
+        bot.crit = false;
+    }
+    target.takeDamage(dmg, bot);
+    const lifesteal = bot.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+    if (lifesteal > 0) {
+        bot.heal(dmg * lifesteal);
+    }
+    if (bot.attackAgainChance && Math.random() < bot.attackAgainChance) {
+        target.takeDamage(dmg, bot); // Attack again
+    }
+    soundSystem.playSound('attack');
+}
 
 function enemyTurn(container) {
   // For engineer turret deploy, pass all bots as grid
@@ -374,20 +408,7 @@ function enemyTurn(container) {
       }
       const target = GameState.player.bots.filter(b => b.alive).sort((a, b) => a.health - b.health)[0];
       if (target) {
-        let dmg = bot.finalAttack;
-        if (bot.crit) {
-          dmg *= 2;
-          bot.crit = false;
-        }
-        target.takeDamage(dmg, bot);
-        const lifesteal = bot.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
-        if (lifesteal > 0) {
-            bot.heal(dmg * lifesteal);
-        }
-        if (bot.attackAgainChance && Math.random() < bot.attackAgainChance) {
-          target.takeDamage(dmg, bot); // Attack again
-        }
-        soundSystem.playSound('attack');
+        performAttack(bot, target);
         acted = true;
         continue;
       }
@@ -399,16 +420,7 @@ function enemyTurn(container) {
       }
       const target = GameState.player.bots.filter(b => b.alive).sort((a, b) => a.health - b.health)[0];
       if (target) {
-        let dmg = bot.finalAttack;
-        if (bot.crit) {
-          dmg *= 2;
-          bot.crit = false;
-        }
-        target.takeDamage(dmg, bot);
-        const lifesteal = bot.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
-        if (lifesteal > 0) {
-            bot.heal(dmg * lifesteal);
-        }
+        performAttack(bot, target);
         acted = true;
         continue;
       }
@@ -425,5 +437,4 @@ function enemyTurn(container) {
   checkVictory();
   GameState.battle.phase = 'player';
   emit('battle:render');
-  playerTurn(container);
 }

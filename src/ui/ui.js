@@ -6,8 +6,10 @@ import { SaveSystem } from '../core/SaveSystem.js';
 import { GameState } from '../core/GameState.js';
 import { UpgradeManager } from '../core/UpgradeManager.js';
 import { Bot } from '../core/Bot.js';
+import { MechCustomizationSystem } from '../features/mechCustomization.js';
 
 const upgradeManager = new UpgradeManager();
+const mechCustomization = new MechCustomizationSystem();
 
 export function mountUI(container) {
   container.innerHTML = '';
@@ -56,7 +58,27 @@ export function mountUI(container) {
         }
     };
     menu.appendChild(upgradeBtn);
-  // Customization button
+    
+  // Mech Customization button (NEW!)
+  const mechCustomBtn = document.createElement('button');
+  mechCustomBtn.textContent = 'Mech Customization';
+  mechCustomBtn.style.background = '#805ad5';
+  mechCustomBtn.style.border = '2px solid #9f7aea';
+  mechCustomBtn.onclick = () => {
+    // Create sample bots if none exist
+    if (!GameState.player || !GameState.player.bots || GameState.player.bots.length === 0) {
+      if (!GameState.player) GameState.player = {};
+      GameState.player.bots = [
+        new Bot({ id: 'demo1', team: 'player', name: 'Guan Yu', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 2 }),
+        new Bot({ id: 'demo2', team: 'player', name: 'Zhang Fei', type: 'defender', faction: 'Shu', class: 'Defender', health: 26, maxHealth: 26, attack: 6, defense: 5, speed: 2, x: 1, y: 3 }),
+        new Bot({ id: 'demo3', team: 'player', name: 'Zhao Yun', type: 'sniper', faction: 'Shu', class: 'Sniper', health: 18, maxHealth: 18, attack: 9, defense: 2, speed: 4, x: 1, y: 4 })
+      ];
+    }
+    showMechCustomizationModal(container);
+  };
+  menu.appendChild(mechCustomBtn);
+  
+  // Original Customization button
   const customBtn = document.createElement('button');
   customBtn.textContent = 'Customization';
   customBtn.onclick = () => {
@@ -123,4 +145,104 @@ export function mountUI(container) {
   }
   container.appendChild(saveMenu);
   container.appendChild(menu);
+}
+
+function showMechCustomizationModal(parentContainer) {
+  // Create modal
+  const modal = document.createElement('div');
+  modal.style.position = 'fixed';
+  modal.style.top = '0';
+  modal.style.left = '0';
+  modal.style.width = '100vw';
+  modal.style.height = '100vh';
+  modal.style.background = 'rgba(0,0,0,0.9)';
+  modal.style.zIndex = '2000';
+  modal.style.overflow = 'auto';
+  modal.style.padding = '20px';
+  
+  // Modal content
+  const content = document.createElement('div');
+  content.style.maxWidth = '1200px';
+  content.style.margin = '0 auto';
+  content.style.background = '#1a202c';
+  content.style.borderRadius = '10px';
+  content.style.position = 'relative';
+  
+  // Close button
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.style.position = 'absolute';
+  closeBtn.style.top = '10px';
+  closeBtn.style.right = '15px';
+  closeBtn.style.background = 'none';
+  closeBtn.style.border = 'none';
+  closeBtn.style.color = '#white';
+  closeBtn.style.fontSize = '30px';
+  closeBtn.style.cursor = 'pointer';
+  closeBtn.onclick = () => parentContainer.removeChild(modal);
+  content.appendChild(closeBtn);
+  
+  // Bot selection
+  const botSelector = document.createElement('div');
+  botSelector.style.padding = '20px';
+  botSelector.style.borderBottom = '1px solid #4a5568';
+  
+  const selectorTitle = document.createElement('h3');
+  selectorTitle.textContent = 'Select Mech to Customize';
+  selectorTitle.style.color = 'white';
+  selectorTitle.style.marginBottom = '15px';
+  botSelector.appendChild(selectorTitle);
+  
+  const botButtons = document.createElement('div');
+  botButtons.style.display = 'flex';
+  botButtons.style.gap = '10px';
+  botButtons.style.flexWrap = 'wrap';
+  
+  GameState.player.bots.forEach((bot, index) => {
+    const botBtn = document.createElement('button');
+    botBtn.textContent = `${bot.name} (${bot.type})`;
+    botBtn.style.padding = '10px 15px';
+    botBtn.style.background = '#4299e1';
+    botBtn.style.color = 'white';
+    botBtn.style.border = 'none';
+    botBtn.style.borderRadius = '5px';
+    botBtn.style.cursor = 'pointer';
+    
+    botBtn.onclick = () => {
+      // Clear previous customization UI
+      const customizationArea = content.querySelector('.customization-area');
+      if (customizationArea) {
+        customizationArea.innerHTML = '';
+        mechCustomization.renderCustomizationUI(customizationArea, bot, (customizedBot, config) => {
+          alert(`${customizedBot.name} customization saved!`);
+          console.log('Customization saved:', config);
+        });
+      }
+      
+      // Highlight selected button
+      botButtons.querySelectorAll('button').forEach(btn => {
+        btn.style.background = '#4299e1';
+      });
+      botBtn.style.background = '#38a169';
+    };
+    
+    botButtons.appendChild(botBtn);
+  });
+  
+  botSelector.appendChild(botButtons);
+  content.appendChild(botSelector);
+  
+  // Customization area
+  const customizationArea = document.createElement('div');
+  customizationArea.className = 'customization-area';
+  customizationArea.style.minHeight = '400px';
+  content.appendChild(customizationArea);
+  
+  modal.appendChild(content);
+  parentContainer.appendChild(modal);
+  
+  // Auto-select first bot
+  if (GameState.player.bots.length > 0) {
+    botButtons.firstChild.click();
+  }
 }

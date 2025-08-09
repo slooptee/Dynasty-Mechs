@@ -13,7 +13,7 @@ function getTypeMultiplier(attacker, defender) {
 import { GameState } from '../core/GameState.js';
 import { Bot } from '../core/Bot.js';
 import { BehaviorTreeAI } from '../ai/AIController.js';
-import { emit } from '../core/eventBus.js';
+import { emit, on } from '../core/eventBus.js';
 import { SkinManager } from '../cosmetics/SkinManager.js';
 import { SynergyManager } from '../core/SynergyManager.js';
 import { ItemManager } from '../core/ItemManager.js';

@@ -12,6 +12,9 @@ export const GameState = {
   player: {
     bots: []
   },
+  enemy: {
+    bots: []
+  },
   pilots: [
     new Pilot({ 
       name: 'Zhang Fei', 

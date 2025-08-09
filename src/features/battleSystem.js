@@ -15,21 +15,51 @@ import { Bot } from '../core/Bot.js';
 import { BehaviorTreeAI } from '../ai/AIController.js';
 import { emit } from '../core/eventBus.js';
 import { SkinManager } from '../cosmetics/SkinManager.js';
+import { SynergyManager } from '../core/SynergyManager.js';
+import { ItemManager } from '../core/ItemManager.js';
+import { BattlefieldManager } from '../core/BattlefieldManager.js';
+import { Pilot } from '../core/Pilot.js';
+import { SoundSystem } from '../core/SoundSystem.js';
 
 const skinManager = new SkinManager();
+const synergyManager = new SynergyManager();
+const itemManager = new ItemManager();
+const battlefieldManager = new BattlefieldManager();
+const soundSystem = new SoundSystem();
+
+battlefieldManager.generateBattlefield();
+
+function createPilots() {
+    GameState.pilots = [
+        new Pilot({ name: 'Guan Yu', description: 'A legendary warrior.', ability: (bot) => bot.attackBonus += 5 }),
+        new Pilot({ name: 'Zhuge Liang', description: 'A master strategist.', ability: (bot) => bot.abilityCooldown = 0 }),
+        new Pilot({ name: 'Cao Cao', description: 'A cunning ruler.', ability: (bot) => bot.crit = 0.2 }),
+        new Pilot({ name: 'Lu Bu', description: 'A peerless warrior.', ability: (bot) => bot.damageReduction = 0.15 }),
+        new Pilot({ name: 'Sima Yi', description: 'A patient schemer.', ability: (bot) => bot.healBonus = 0.25 }),
+    ];
+}
 
 function createBots() {
-  // Player bots: assault, medic, scout
-  GameState.player.bots = [
-    new Bot({ id: 'p1', team: 'player', name: 'Alpha', type: 'assault', health: 20, maxHealth: 20, attack: 6, defense: 2, speed: 3, x: 1, y: 2 }),
-    new Bot({ id: 'p2', team: 'player', name: 'Bravo', type: 'medic', health: 16, maxHealth: 16, attack: 4, defense: 1, speed: 4, x: 1, y: 4 }),
-    new Bot({ id: 'p3', team: 'player', name: 'Scout', type: 'scout', health: 14, maxHealth: 14, attack: 5, defense: 1, speed: 6, x: 1, y: 3 })
-  ];
-  // Enemy bots: defender, sniper, engineer
+  createPilots();
+  // Player bots
+  const p1 = new Bot({ id: 'p1', team: 'player', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 2 });
+  p1.assignPilot(GameState.pilots[0]);
+  const p2 = new Bot({ id: 'p2', team: 'player', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 4 });
+  p2.assignPilot(GameState.pilots[0]);
+  const p3 = new Bot({ id: 'p3', team: 'player', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 3 });
+  p3.assignPilot(GameState.pilots[0]);
+  GameState.player.bots = [p1, p2, p3];
+
+  // Enemy bots
+  const e1 = new Bot({ id: 'e1', team: 'enemy', type: 'defender', faction: 'Wei', class: 'Defender', health: 24, maxHealth: 24, attack: 6, defense: 4, speed: 2, x: 8, y: 2 });
+  e1.assignPilot(GameState.pilots[2]);
+  const e2 = new Bot({ id: 'e2', team: 'enemy', type: 'sniper', faction: 'Wu', class: 'Sniper', health: 18, maxHealth: 18, attack: 8, defense: 1, speed: 4, x: 8, y: 4 });
+  const e3 = new Bot({ id: 'e3', team: 'enemy', type: 'engineer', faction: 'Shu', class: 'Engineer', health: 20, maxHealth: 20, attack: 5, defense: 3, speed: 2, x: 8, y: 3 });
+  e3.assignPilot(GameState.pilots[1]);
   GameState.enemy.bots = [
-    Object.assign(new Bot({ id: 'e1', team: 'enemy', name: 'Omega', type: 'defender', health: 22, maxHealth: 22, attack: 5, defense: 4, speed: 2, x: 8, y: 2 }), { personality: 'defensive' }),
-    Object.assign(new Bot({ id: 'e2', team: 'enemy', name: 'Delta', type: 'sniper', health: 16, maxHealth: 16, attack: 8, defense: 1, speed: 4, x: 8, y: 4 }), { personality: 'aggressive' }),
-    Object.assign(new Bot({ id: 'e3', team: 'enemy', name: 'Engi', type: 'engineer', health: 18, maxHealth: 18, attack: 5, defense: 3, speed: 2, x: 8, y: 3 }), { personality: 'opportunist' })
+    Object.assign(e1, { personality: 'defensive' }),
+    Object.assign(e2, { personality: 'aggressive' }),
+    Object.assign(e3, { personality: 'opportunist' })
   ];
 }
 
@@ -64,6 +94,14 @@ function renderGrid(container) {
       cell.className = 'cell';
       cell.dataset.x = x;
       cell.dataset.y = y;
+
+      const tile = GameState.battle.grid[y - 1][x - 1];
+      if (tile.type === 'fortress') {
+        cell.style.backgroundColor = '#a1887f';
+      } else if (tile.type === 'swamp') {
+        cell.style.backgroundColor = '#4caf50';
+      }
+
       // Highlight valid moves/attacks
       if (selectedBot && validMoves.some(m => m.x === x && m.y === y)) {
         cell.style.background = '#2e7d32';
@@ -94,9 +132,28 @@ function renderGrid(container) {
   const botEl = document.createElement('div');
   botEl.className = `bot ${bot.team}`;
   botEl.dataset.botId = bot.id;
+
+  botEl.addEventListener('dragover', (e) => {
+    e.preventDefault();
+  });
+
+  botEl.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const itemName = e.dataTransfer.getData('text/plain');
+    const item = GameState.inventory.find(i => i.name === itemName);
+    const pilot = GameState.pilots.find(p => p.name === itemName);
+    if (item) {
+      itemManager.equipItem(item, bot);
+      emit('battle:render');
+    } else if (pilot) {
+      bot.assignPilot(pilot);
+      emit('battle:render');
+    }
+  });
+
   // Bot name
   const nameDiv = document.createElement('div');
-  nameDiv.textContent = bot.name;
+  nameDiv.textContent = bot.name + ' ' + '★'.repeat(bot.level);
   nameDiv.style.fontWeight = 'bold';
   nameDiv.style.fontSize = '0.8em';
   botEl.appendChild(nameDiv);
@@ -119,7 +176,7 @@ function renderGrid(container) {
   const statsDiv = document.createElement('div');
   statsDiv.style.fontSize = '0.7em';
   statsDiv.style.textAlign = 'center';
-  statsDiv.textContent = `HP:${bot.health}/${bot.maxHealth} ATK:${bot.attack} DEF:${bot.defense} ${bot.type}`;
+  statsDiv.textContent = `HP:${bot.health}/${bot.maxHealth} ATK:${bot.finalAttack} DEF:${bot.finalDefense} SPD:${bot.finalSpeed}`;
   botEl.appendChild(statsDiv);
     // Position in grid
     const selector = `.cell[data-x="${bot.x}"][data-y="${bot.y}"]`;
@@ -157,9 +214,21 @@ function renderGrid(container) {
         e.stopPropagation();
         // Attack with type advantage
         const mult = getTypeMultiplier(selectedBot, bot);
-        const dmg = Math.round(selectedBot.attack * mult);
-        bot.takeDamage(dmg);
+        let dmg = Math.round(selectedBot.finalAttack * mult);
+        if (selectedBot.crit) {
+          dmg *= 2;
+          selectedBot.crit = false; // Crit is consumed
+        }
+        bot.takeDamage(dmg, selectedBot);
+        const lifesteal = selectedBot.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+        if (lifesteal > 0) {
+            selectedBot.heal(dmg * lifesteal);
+        }
+        if (selectedBot.attackAgainChance && Math.random() < selectedBot.attackAgainChance) {
+          bot.takeDamage(dmg, selectedBot); // Attack again
+        }
         lastAttackCell = { x: bot.x, y: bot.y };
+        soundSystem.playSound('attack');
         // PixiJS hit effect
         playHitEffect(bot.x, bot.y);
         selectedBot = null;
@@ -172,6 +241,56 @@ function renderGrid(container) {
     }
   });
   container.appendChild(grid);
+
+  // Synergy UI
+  const synergyContainer = document.createElement('div');
+  synergyContainer.className = 'synergy-container';
+  const playerSynergies = synergyManager.calculateSynergies(GameState.player.bots.filter(b => b.alive));
+  synergyManager.applySynergies(GameState.player.bots, playerSynergies, GameState.battle.grid);
+  const enemySynergies = synergyManager.calculateSynergies(GameState.enemy.bots.filter(b => b.alive));
+  synergyManager.applySynergies(GameState.enemy.bots, enemySynergies, GameState.battle.grid);
+
+  const createSynergyList = (title, synergies) => {
+    const list = document.createElement('div');
+    const titleEl = document.createElement('h4');
+    titleEl.textContent = title;
+    list.appendChild(titleEl);
+    for (const faction in synergies.factions) {
+      const syn = synergies.factions[faction];
+      const el = document.createElement('div');
+      el.textContent = `${faction} (${syn.count}): ${syn.description}`;
+      list.appendChild(el);
+    }
+    for (const botClass in synergies.classes) {
+      const syn = synergies.classes[botClass];
+      const el = document.createElement('div');
+      el.textContent = `${botClass} (${syn.count}): ${syn.description}`;
+      list.appendChild(el);
+    }
+    return list;
+  };
+
+  synergyContainer.appendChild(createSynergyList('Player Synergies', playerSynergies));
+  synergyContainer.appendChild(createSynergyList('Enemy Synergies', enemySynergies));
+  container.appendChild(synergyContainer);
+
+  // Inventory UI
+    const inventoryContainer = document.createElement('div');
+    inventoryContainer.className = 'inventory-container';
+    const inventoryTitle = document.createElement('h4');
+    inventoryTitle.textContent = 'Inventory';
+    inventoryContainer.appendChild(inventoryTitle);
+    GameState.inventory.forEach(item => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'item';
+        itemEl.textContent = `${item.name} (${item.description})`;
+        itemEl.draggable = true;
+        itemEl.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', item.name);
+        });
+        inventoryContainer.appendChild(itemEl);
+    });
+    container.appendChild(inventoryContainer);
 }
 
 function checkVictory() {
@@ -225,101 +344,86 @@ function playerTurn(container) {
   container.appendChild(endBtn);
 }
 
-  const ai = new BehaviorTreeAI();
-  GameState.enemy.bots.forEach(bot => {
-    if (!bot.alive) return;
+const ai = new BehaviorTreeAI();
+
+function enemyTurn(container) {
+  // For engineer turret deploy, pass all bots as grid
+  const allBots = [...GameState.player.bots, ...GameState.enemy.bots];
+  for (const bot of GameState.enemy.bots) {
+    if (!bot.alive) continue;
     bot.tickCooldown();
+    let acted = false;
     // AI personality logic
     if (bot.personality === 'defensive') {
       // Use shield/heal if any ally is below 60% HP
       const lowAlly = GameState.enemy.bots.find(a => a.alive && a.health < a.maxHealth * 0.6);
       if (lowAlly) {
-        const ability = bot.useAbility(GameState.enemy.bots, GameState.player.bots);
-        if (ability) return;
+        acted = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
+        if (acted) continue;
       }
-    }
-    if (bot.personality === 'aggressive') {
-      // Always attack weakest player
+    } else if (bot.personality === 'aggressive') {
+      // Use area attack if available, else attack weakest
+      if (bot.type === 'assault' && bot.abilityCooldown === 0) {
+        acted = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
+        if (acted) continue;
+      }
+      // Use snipe if sniper
+      if (bot.type === 'sniper' && bot.abilityCooldown === 0) {
+        acted = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
+        if (acted) continue;
+      }
       const target = GameState.player.bots.filter(b => b.alive).sort((a, b) => a.health - b.health)[0];
       if (target) {
-        target.takeDamage(bot.attack);
-        return;
+        let dmg = bot.finalAttack;
+        if (bot.crit) {
+          dmg *= 2;
+          bot.crit = false;
+        }
+        target.takeDamage(dmg, bot);
+        const lifesteal = bot.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+        if (lifesteal > 0) {
+            bot.heal(dmg * lifesteal);
+        }
+        if (bot.attackAgainChance && Math.random() < bot.attackAgainChance) {
+          target.takeDamage(dmg, bot); // Attack again
+        }
+        soundSystem.playSound('attack');
+        acted = true;
+        continue;
       }
-    }
-    if (bot.personality === 'opportunist') {
+    } else if (bot.personality === 'opportunist') {
       // Use ability if off cooldown, else attack lowest HP
       if (bot.abilityCooldown === 0) {
-        const ability = bot.useAbility(GameState.enemy.bots, GameState.player.bots);
-        if (ability) return;
+        acted = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
+        if (acted) continue;
       }
       const target = GameState.player.bots.filter(b => b.alive).sort((a, b) => a.health - b.health)[0];
       if (target) {
-        target.takeDamage(bot.attack);
-        return;
+        let dmg = bot.finalAttack;
+        if (bot.crit) {
+          dmg *= 2;
+          bot.crit = false;
+        }
+        target.takeDamage(dmg, bot);
+        const lifesteal = bot.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+        if (lifesteal > 0) {
+            bot.heal(dmg * lifesteal);
+        }
+        acted = true;
+        continue;
       }
     }
+
     // Fallback: default AI
-    ai.act({
-      self: bot,
-      enemies: GameState.player.bots.filter(b => b.alive)
-    });
-  });
-  checkVictory();
-  GameState.battle.phase = 'player';
-  emit('battle:render');
-  function enemyTurn(container) {
-    const ai = new BehaviorTreeAI();
-    // For engineer turret deploy, pass all bots as grid
-    const allBots = [...GameState.player.bots, ...GameState.enemy.bots];
-    GameState.enemy.bots.forEach(bot => {
-      if (!bot.alive) return;
-      bot.tickCooldown();
-      // AI personality logic
-      if (bot.personality === 'defensive') {
-        // Use shield/heal if any ally is below 60% HP
-        const lowAlly = GameState.enemy.bots.find(a => a.alive && a.health < a.maxHealth * 0.6);
-        if (lowAlly) {
-          const ability = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
-          if (ability) return;
-        }
-      }
-      if (bot.personality === 'aggressive') {
-        // Use area attack if available, else attack weakest
-        if (bot.type === 'assault' && bot.abilityCooldown === 0) {
-          const ability = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
-          if (ability) return;
-        }
-        // Use snipe if sniper
-        if (bot.type === 'sniper' && bot.abilityCooldown === 0) {
-          const ability = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
-          if (ability) return;
-        }
-        const target = GameState.player.bots.filter(b => b.alive).sort((a, b) => a.health - b.health)[0];
-        if (target) {
-          target.takeDamage(bot.attack);
-          return;
-        }
-      }
-      if (bot.personality === 'opportunist') {
-        // Use ability if off cooldown, else attack lowest HP
-        if (bot.abilityCooldown === 0) {
-          const ability = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
-          if (ability) return;
-        }
-        const target = GameState.player.bots.filter(b => b.alive).sort((a, b) => a.health - b.health)[0];
-        if (target) {
-          target.takeDamage(bot.attack);
-          return;
-        }
-      }
-      // Fallback: default AI
+    if (!acted) {
       ai.act({
         self: bot,
         enemies: GameState.player.bots.filter(b => b.alive)
       });
-    });
-    checkVictory();
-    GameState.battle.phase = 'player';
-    emit('battle:render');
-    playerTurn(container);
+    }
   }
+  checkVictory();
+  GameState.battle.phase = 'player';
+  emit('battle:render');
+  playerTurn(container);
+}

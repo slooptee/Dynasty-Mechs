@@ -4,6 +4,26 @@ import { mountCustomizationUI } from '../features/skinManager.js';
 import { SkinManager } from '../cosmetics/SkinManager.js';
 import { SaveSystem } from '../core/SaveSystem.js';
 import { GameState } from '../core/GameState.js';
+import { UpgradeManager } from '../core/UpgradeManager.js';
+import { Bot } from '../core/Bot.js';
+import { Item } from '../core/Item.js';
+import { ItemManager } from '../core/ItemManager.js';
+import { SoundSystem } from '../core/SoundSystem.js';
+
+const upgradeManager = new UpgradeManager();
+const itemManager = new ItemManager();
+const soundSystem = new SoundSystem();
+
+// Temp function to give player some items
+function createTestItems() {
+    itemManager.addItem(new Item({ name: 'Power Sword', description: '+5 Attack', effects: { attack: 5 } }));
+    itemManager.addItem(new Item({ name: 'Iron Shield', description: '+5 Defense', effects: { defense: 5 } }));
+    itemManager.addItem(new Item({ name: 'Speed Boots', description: '+2 Speed', effects: { speed: 2 } }));
+    itemManager.addItem(new Item({ name: 'Vampiric Dagger', description: 'Heal for 20% of damage dealt', effects: { lifesteal: 0.2 } }));
+    itemManager.addItem(new Item({ name: 'Thornmail', description: 'Reflect 10% of damage taken', effects: { damageReflect: 0.1 } }));
+}
+
+createTestItems();
 
 export function mountUI(container) {
   container.innerHTML = '';
@@ -33,6 +53,26 @@ export function mountUI(container) {
     window._customOverlay = customOverlay;
   };
   menu.appendChild(quickBtn);
+  // Upgrade button
+    const upgradeBtn = document.createElement('button');
+    upgradeBtn.textContent = 'Upgrade Bots';
+    upgradeBtn.onclick = () => {
+        if (GameState.player && GameState.player.bots) {
+            const availableUpgrades = upgradeManager.checkForUpgrades(GameState.player.bots);
+            if (availableUpgrades.length > 0) {
+                availableUpgrades.forEach(upgrade => {
+                    GameState.player.bots = upgradeManager.performUpgrade(GameState.player.bots, upgrade);
+                });
+                soundSystem.playSound('upgrade');
+                alert('Bots upgraded!');
+            } else {
+                alert('No upgrades available.');
+            }
+        } else {
+            alert('Start a battle to get some bots first!');
+        }
+    };
+    menu.appendChild(upgradeBtn);
   // Customization button
   const customBtn = document.createElement('button');
   customBtn.textContent = 'Customization';
@@ -100,4 +140,22 @@ export function mountUI(container) {
   }
   container.appendChild(saveMenu);
   container.appendChild(menu);
+
+  // Pilot selection UI
+    const pilotContainer = document.createElement('div');
+    pilotContainer.className = 'pilot-container';
+    const pilotTitle = document.createElement('h4');
+    pilotTitle.textContent = 'Available Pilots';
+    pilotContainer.appendChild(pilotTitle);
+    GameState.pilots.forEach(pilot => {
+        const pilotEl = document.createElement('div');
+        pilotEl.className = 'pilot';
+        pilotEl.textContent = `${pilot.name} (${pilot.description})`;
+        pilotEl.draggable = true;
+        pilotEl.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', pilot.name);
+        });
+        pilotContainer.appendChild(pilotEl);
+    });
+    container.appendChild(pilotContainer);
 }

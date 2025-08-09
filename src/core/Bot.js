@@ -1,10 +1,12 @@
 // Bot class for battle
 export class Bot {
-  constructor({ id, team, name, type, health, maxHealth, attack, defense, speed, x, y }) {
+  constructor({ id, team, type, health, maxHealth, attack, defense, speed, x, y, faction, class: botClass }) {
     this.id = id;
     this.team = team;
-    this.name = name;
     this.type = type;
+    this.faction = faction;
+    this.class = botClass;
+    this.level = 1;
     this.health = health;
     this.maxHealth = maxHealth;
     this.attack = attack;
@@ -16,11 +18,56 @@ export class Bot {
     // Ability state
     this.shielded = false; // Defender
     this.abilityCooldown = 0;
+    // Synergy bonuses
+    this.speedBonus = 0;
+    this.defenseBonus = 0;
+    this.attackBonus = 0;
+    this.dodge = 0;
+    this.damageReduction = 0;
+    this.crit = false;
+    this.healBonus = 0;
+    this.attackAgainChance = 0;
+    this.items = [];
+    this.pilot = null;
   }
-  takeDamage(amount) {
-    let dmg = amount;
+
+  get name() {
+    return this.pilot ? `${this.pilot.name}'s ${this.type}` : this.type;
+  }
+
+  assignPilot(pilot) {
+    this.pilot = pilot;
+    if (this.pilot.ability) {
+      this.pilot.ability(this);
+    }
+  }
+
+  get finalAttack() {
+    const itemBonus = this.items.reduce((acc, item) => acc + (item.effects.attack || 0), 0);
+    return this.attack + this.attackBonus + itemBonus;
+  }
+
+  get finalDefense() {
+    const itemBonus = this.items.reduce((acc, item) => acc + (item.effects.defense || 0), 0);
+    return this.defense + this.defenseBonus + itemBonus;
+  }
+
+  get finalSpeed() {
+    const itemBonus = this.items.reduce((acc, item) => acc + (item.effects.speed || 0), 0);
+    return this.speed + this.speedBonus + itemBonus;
+  }
+
+  takeDamage(amount, attacker) {
+    if (Math.random() < this.dodge) return; // Dodge the attack
+
+    const damageReflect = this.items.reduce((acc, item) => acc + (item.effects.damageReflect || 0), 0);
+    if (attacker && damageReflect > 0) {
+        attacker.takeDamage(amount * damageReflect);
+    }
+
+    let dmg = amount * (1 - this.damageReduction);
     if (this.shielded) {
-      dmg = Math.ceil(amount / 2);
+      dmg = Math.ceil(dmg / 2);
       this.shielded = false; // shield breaks after one hit
     }
     this.health -= dmg;
@@ -30,7 +77,8 @@ export class Bot {
     }
   }
   heal(amount) {
-    this.health = Math.min(this.maxHealth, this.health + amount);
+    const finalHeal = amount * (1 + this.healBonus);
+    this.health = Math.min(this.maxHealth, this.health + finalHeal);
   }
   canAct() {
     return this.alive;
@@ -73,7 +121,12 @@ export class Bot {
           const ny = this.y + dy;
           const enemy = enemies.find(e => e.alive && e.x === nx && e.y === ny);
           if (enemy) {
-            enemy.takeDamage(Math.round(this.attack * 0.8));
+            const dmg = Math.round(this.finalAttack * 0.8);
+            enemy.takeDamage(dmg, this);
+            const lifesteal = this.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+            if (lifesteal > 0) {
+                this.heal(dmg * lifesteal);
+            }
             hit = true;
           }
         });
@@ -87,7 +140,12 @@ export class Bot {
         // Long-range attack: hit any enemy, higher cooldown
         const target = enemies.filter(e => e.alive).sort((a, b) => a.health - b.health)[0];
         if (target) {
-          target.takeDamage(this.attack + 2);
+            const dmg = this.finalAttack + 2;
+            target.takeDamage(dmg, this);
+            const lifesteal = this.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+            if (lifesteal > 0) {
+                this.heal(dmg * lifesteal);
+            }
           this.abilityCooldown = 4;
           return { action: 'snipe', target };
         }
@@ -112,5 +170,13 @@ export class Bot {
   }
   tickCooldown() {
     if (this.abilityCooldown > 0) this.abilityCooldown--;
+  }
+
+  levelUp() {
+    this.level++;
+    this.maxHealth = Math.round(this.maxHealth * 1.8);
+    this.attack = Math.round(this.attack * 1.8);
+    this.defense = Math.round(this.defense * 1.8);
+    this.health = this.maxHealth;
   }
 }

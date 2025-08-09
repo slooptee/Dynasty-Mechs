@@ -114,16 +114,34 @@ export class SynergyManager {
     for (const faction in activeSynergies.factions) {
       const bonus = activeSynergies.factions[faction];
       if (faction === 'Shu') {
-        if (bonus.count >= 2) bots.forEach(b => b.speedBonus += 1);
-        if (bonus.count >= 3) bots.forEach(b => b.dodge += 0.1);
+        if (bonus.count >= 3) {
+            bots.forEach(b => {
+                b.speedBonus += 2;
+                b.dodge += 0.1;
+            });
+        } else if (bonus.count >= 2) {
+            bots.forEach(b => b.speedBonus += 1);
+        }
       }
       if (faction === 'Wei') {
-        if (bonus.count >= 2) bots.forEach(b => b.defenseBonus += 1);
-        if (bonus.count >= 3) bots.forEach(b => b.damageReduction += 0.1);
+        if (bonus.count >= 3) {
+            bots.forEach(b => {
+                b.defenseBonus += 2;
+                b.damageReduction += 0.1;
+            });
+        } else if (bonus.count >= 2) {
+            bots.forEach(b => b.defenseBonus += 1);
+        }
       }
       if (faction === 'Wu') {
-        if (bonus.count >= 2) bots.forEach(b => b.attackBonus += 1);
-        if (bonus.count >= 3) bots.forEach(b => b.crit = true);
+        if (bonus.count >= 3) {
+            bots.forEach(b => {
+                b.attackBonus += 2;
+                b.crit = true;
+            });
+        } else if (bonus.count >= 2) {
+            bots.forEach(b => b.attackBonus += 1);
+        }
       }
     }
 

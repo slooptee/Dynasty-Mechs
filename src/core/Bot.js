@@ -28,18 +28,22 @@ export class Bot {
     this.crit = false;
     this.healBonus = 0;
     this.attackAgainChance = 0;
+    this.items = [];
   }
 
   get finalAttack() {
-    return this.attack + this.attackBonus;
+    const itemBonus = this.items.reduce((acc, item) => acc + (item.effects.attack || 0), 0);
+    return this.attack + this.attackBonus + itemBonus;
   }
 
   get finalDefense() {
-    return this.defense + this.defenseBonus;
+    const itemBonus = this.items.reduce((acc, item) => acc + (item.effects.defense || 0), 0);
+    return this.defense + this.defenseBonus + itemBonus;
   }
 
   get finalSpeed() {
-    return this.speed + this.speedBonus;
+    const itemBonus = this.items.reduce((acc, item) => acc + (item.effects.speed || 0), 0);
+    return this.speed + this.speedBonus + itemBonus;
   }
 
   takeDamage(amount) {

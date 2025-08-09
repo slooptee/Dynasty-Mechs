@@ -6,8 +6,20 @@ import { SaveSystem } from '../core/SaveSystem.js';
 import { GameState } from '../core/GameState.js';
 import { UpgradeManager } from '../core/UpgradeManager.js';
 import { Bot } from '../core/Bot.js';
+import { Item } from '../core/Item.js';
+import { ItemManager } from '../core/ItemManager.js';
 
 const upgradeManager = new UpgradeManager();
+const itemManager = new ItemManager();
+
+// Temp function to give player some items
+function createTestItems() {
+    itemManager.addItem(new Item({ name: 'Power Sword', description: '+5 Attack', effects: { attack: 5 } }));
+    itemManager.addItem(new Item({ name: 'Iron Shield', description: '+5 Defense', effects: { defense: 5 } }));
+    itemManager.addItem(new Item({ name: 'Speed Boots', description: '+2 Speed', effects: { speed: 2 } }));
+}
+
+createTestItems();
 
 export function mountUI(container) {
   container.innerHTML = '';

@@ -16,9 +16,11 @@ import { BehaviorTreeAI } from '../ai/AIController.js';
 import { emit } from '../core/eventBus.js';
 import { SkinManager } from '../cosmetics/SkinManager.js';
 import { SynergyManager } from '../core/SynergyManager.js';
+import { ItemManager } from '../core/ItemManager.js';
 
 const skinManager = new SkinManager();
 const synergyManager = new SynergyManager();
+const itemManager = new ItemManager();
 
 function createBots() {
   // Player bots
@@ -96,6 +98,21 @@ function renderGrid(container) {
   const botEl = document.createElement('div');
   botEl.className = `bot ${bot.team}`;
   botEl.dataset.botId = bot.id;
+
+  botEl.addEventListener('dragover', (e) => {
+    e.preventDefault();
+  });
+
+  botEl.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const itemName = e.dataTransfer.getData('text/plain');
+    const item = GameState.inventory.find(i => i.name === itemName);
+    if (item) {
+      itemManager.equipItem(item, bot);
+      emit('battle:render');
+    }
+  });
+
   // Bot name
   const nameDiv = document.createElement('div');
   nameDiv.textContent = bot.name + ' ' + '★'.repeat(bot.level);
@@ -213,6 +230,24 @@ function renderGrid(container) {
   synergyContainer.appendChild(createSynergyList('Player Synergies', playerSynergies));
   synergyContainer.appendChild(createSynergyList('Enemy Synergies', enemySynergies));
   container.appendChild(synergyContainer);
+
+  // Inventory UI
+    const inventoryContainer = document.createElement('div');
+    inventoryContainer.className = 'inventory-container';
+    const inventoryTitle = document.createElement('h4');
+    inventoryTitle.textContent = 'Inventory';
+    inventoryContainer.appendChild(inventoryTitle);
+    GameState.inventory.forEach(item => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'item';
+        itemEl.textContent = `${item.name} (${item.description})`;
+        itemEl.draggable = true;
+        itemEl.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', item.name);
+        });
+        inventoryContainer.appendChild(itemEl);
+    });
+    container.appendChild(inventoryContainer);
 }
 
 function checkVictory() {

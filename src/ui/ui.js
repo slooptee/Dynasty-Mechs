@@ -9,153 +9,203 @@ import { Bot } from '../core/Bot.js';
 import { Item } from '../core/Item.js';
 import { ItemManager } from '../core/ItemManager.js';
 import { SoundSystem } from '../core/SoundSystem.js';
+import { createTestItems } from '../data/testItems.js';
 
 const upgradeManager = new UpgradeManager();
 const itemManager = new ItemManager();
 const soundSystem = new SoundSystem();
 
-// Temp function to give player some items
-function createTestItems() {
-    itemManager.addItem(new Item({ name: 'Power Sword', description: '+5 Attack', effects: { attack: 5 } }));
-    itemManager.addItem(new Item({ name: 'Iron Shield', description: '+5 Defense', effects: { defense: 5 } }));
-    itemManager.addItem(new Item({ name: 'Speed Boots', description: '+2 Speed', effects: { speed: 2 } }));
-    itemManager.addItem(new Item({ name: 'Vampiric Dagger', description: 'Heal for 20% of damage dealt', effects: { lifesteal: 0.2 } }));
-    itemManager.addItem(new Item({ name: 'Thornmail', description: 'Reflect 10% of damage taken', effects: { damageReflect: 0.1 } }));
+// Initialize test items
+createTestItems(itemManager);
+
+// Cache for overlay element
+let customOverlay = null;
+
+/**
+ * Creates and returns the customization overlay element
+ * @param {HTMLElement} container - Parent container
+ * @returns {HTMLElement} The overlay element
+ */
+function createCustomizationOverlay(container) {
+  if (customOverlay) {
+    return customOverlay;
+  }
+  
+  customOverlay = document.createElement('div');
+  customOverlay.className = 'custom-overlay';
+  customOverlay.id = 'custom-overlay';
+  container.appendChild(customOverlay);
+  
+  return customOverlay;
 }
 
-createTestItems();
+/**
+ * Shows a user message using a better UI than alert
+ * @param {string} message - Message to display
+ * @param {string} type - Type of message ('success', 'error', 'info')
+ */
+function showMessage(message, type = 'info') {
+  // For now, still using alert but this can be replaced with a toast or modal system
+  alert(message);
+}
 
-export function mountUI(container) {
+/**
+ * Handles the quick battle button click
+ * @param {HTMLElement} container - Main container element
+ */
+function handleQuickBattle(container) {
   container.innerHTML = '';
-  const menu = document.createElement('div');
-  menu.className = 'main-menu';
-  const quickBtn = document.createElement('button');
-  quickBtn.textContent = 'Quick Battle';
-  quickBtn.onclick = () => {
-    container.innerHTML = '';
-    const battleDiv = document.createElement('div');
-    battleDiv.id = 'battle-container';
-    container.appendChild(battleDiv);
-    startBattle(battleDiv);
-    // Add customization overlay (hidden by default)
-    const customOverlay = document.createElement('div');
-    customOverlay.id = 'custom-overlay';
-    customOverlay.style.display = 'none';
-    customOverlay.style.position = 'fixed';
-    customOverlay.style.top = '0';
-    customOverlay.style.left = '0';
-    customOverlay.style.width = '100vw';
-    customOverlay.style.height = '100vh';
-    customOverlay.style.background = 'rgba(0,0,0,0.7)';
-    customOverlay.style.zIndex = '1000';
-    container.appendChild(customOverlay);
-    // Expose for later
-    window._customOverlay = customOverlay;
-  };
-  menu.appendChild(quickBtn);
-  // Upgrade button
-    const upgradeBtn = document.createElement('button');
-    upgradeBtn.textContent = 'Upgrade Bots';
-    upgradeBtn.onclick = () => {
-        if (GameState.player && GameState.player.bots) {
-            const availableUpgrades = upgradeManager.checkForUpgrades(GameState.player.bots);
-            if (availableUpgrades.length > 0) {
-                availableUpgrades.forEach(upgrade => {
-                    GameState.player.bots = upgradeManager.performUpgrade(GameState.player.bots, upgrade);
-                });
-                soundSystem.playSound('upgrade');
-                alert('Bots upgraded!');
-            } else {
-                alert('No upgrades available.');
-            }
-        } else {
-            alert('Start a battle to get some bots first!');
-        }
-    };
-    menu.appendChild(upgradeBtn);
-  // Customization button
-  const customBtn = document.createElement('button');
-  customBtn.textContent = 'Customization';
-  customBtn.onclick = () => {
-    let overlay = window._customOverlay;
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'custom-overlay';
-      overlay.style.position = 'fixed';
-      overlay.style.top = '0';
-      overlay.style.left = '0';
-      overlay.style.width = '100vw';
-      overlay.style.height = '100vh';
-      overlay.style.background = 'rgba(0,0,0,0.7)';
-      overlay.style.zIndex = '1000';
-      container.appendChild(overlay);
-      window._customOverlay = overlay;
-    }
-    overlay.style.display = 'block';
-    // Use player bots and SkinManager
-    import('../core/GameState.js').then(({ GameState }) => {
-      import('../cosmetics/SkinManager.js').then(({ SkinManager }) => {
-        const skinManager = new SkinManager();
-        mountCustomizationUI({
-          container: overlay,
-          bots: GameState.player.bots,
-          skinManager
-        });
+  const battleDiv = document.createElement('div');
+  battleDiv.id = 'battle-container';
+  container.appendChild(battleDiv);
+  startBattle(battleDiv);
+  
+  // Add customization overlay for later use
+  createCustomizationOverlay(container);
+}
+
+/**
+ * Handles the upgrade bots button click
+ */
+function handleUpgradeBots() {
+  if (GameState.player && GameState.player.bots) {
+    const availableUpgrades = upgradeManager.checkForUpgrades(GameState.player.bots);
+    if (availableUpgrades.length > 0) {
+      availableUpgrades.forEach(upgrade => {
+        GameState.player.bots = upgradeManager.performUpgrade(GameState.player.bots, upgrade);
       });
-    });
-  };
-  menu.appendChild(customBtn);
-  // Save/Load menu
+      soundSystem.playSound('upgrade');
+      showMessage('Bots upgraded!', 'success');
+    } else {
+      showMessage('No upgrades available.', 'info');
+    }
+  } else {
+    showMessage('Start a battle to get some bots first!', 'info');
+  }
+}
+
+/**
+ * Handles the customization button click
+ * @param {HTMLElement} container - Main container element
+ */
+function handleCustomization(container) {
+  const overlay = createCustomizationOverlay(container);
+  overlay.classList.add('visible');
+  
+  // Use already imported modules directly
+  const skinManager = new SkinManager();
+  mountCustomizationUI({
+    container: overlay,
+    bots: GameState.player.bots,
+    skinManager
+  });
+}
+
+/**
+ * Creates the save/load menu
+ * @returns {HTMLElement} The save menu element
+ */
+function createSaveMenu() {
   const saveMenu = document.createElement('div');
   saveMenu.className = 'save-menu';
-  saveMenu.style.display = 'flex';
-  saveMenu.style.gap = '1em';
-  saveMenu.style.justifyContent = 'center';
-  saveMenu.style.margin = '1em 0';
+  
   for (let slot = 1; slot <= 3; slot++) {
     const saveBtn = document.createElement('button');
     saveBtn.textContent = `Save ${slot}`;
     saveBtn.onclick = () => {
       SaveSystem.save(slot, GameState);
-      alert(`Game saved to slot ${slot}`);
+      showMessage(`Game saved to slot ${slot}`, 'success');
     };
     saveMenu.appendChild(saveBtn);
+    
     const loadBtn = document.createElement('button');
     loadBtn.textContent = `Load ${slot}`;
     loadBtn.onclick = () => {
       const data = SaveSystem.load(slot);
       if (data) {
         Object.assign(GameState, data);
-        alert(`Game loaded from slot ${slot}`);
+        showMessage(`Game loaded from slot ${slot}`, 'success');
         // Re-render if in battle
-        if (document.getElementById('battle-container')) {
-          document.getElementById('battle-container').innerHTML = '';
-          startBattle(document.getElementById('battle-container'));
+        const battleContainer = document.getElementById('battle-container');
+        if (battleContainer) {
+          battleContainer.innerHTML = '';
+          startBattle(battleContainer);
         }
       } else {
-        alert('No save in this slot.');
+        showMessage('No save in this slot.', 'info');
       }
     };
     saveMenu.appendChild(loadBtn);
   }
-  container.appendChild(saveMenu);
-  container.appendChild(menu);
+  
+  return saveMenu;
+}
 
-  // Pilot selection UI
-    const pilotContainer = document.createElement('div');
-    pilotContainer.className = 'pilot-container';
-    const pilotTitle = document.createElement('h4');
-    pilotTitle.textContent = 'Available Pilots';
-    pilotContainer.appendChild(pilotTitle);
-    GameState.pilots.forEach(pilot => {
-        const pilotEl = document.createElement('div');
-        pilotEl.className = 'pilot';
-        pilotEl.textContent = `${pilot.name} (${pilot.description})`;
-        pilotEl.draggable = true;
-        pilotEl.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', pilot.name);
-        });
-        pilotContainer.appendChild(pilotEl);
+/**
+ * Creates the pilot selection UI
+ * @returns {HTMLElement} The pilot container element
+ */
+function createPilotSelection() {
+  const pilotContainer = document.createElement('div');
+  pilotContainer.className = 'pilot-container';
+  
+  const pilotTitle = document.createElement('h4');
+  pilotTitle.textContent = 'Available Pilots';
+  pilotContainer.appendChild(pilotTitle);
+  
+  GameState.pilots.forEach(pilot => {
+    const pilotEl = document.createElement('div');
+    pilotEl.className = 'pilot';
+    pilotEl.textContent = `${pilot.name} (${pilot.description})`;
+    pilotEl.draggable = true;
+    pilotEl.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', pilot.name);
     });
-    container.appendChild(pilotContainer);
+    pilotContainer.appendChild(pilotEl);
+  });
+  
+  return pilotContainer;
+}
+
+/**
+ * Creates the main menu buttons
+ * @param {HTMLElement} container - Main container element
+ * @returns {HTMLElement} The menu element
+ */
+function createMainMenu(container) {
+  const menu = document.createElement('div');
+  menu.className = 'main-menu';
+  
+  // Quick Battle button
+  const quickBtn = document.createElement('button');
+  quickBtn.textContent = 'Quick Battle';
+  quickBtn.onclick = () => handleQuickBattle(container);
+  menu.appendChild(quickBtn);
+  
+  // Upgrade button
+  const upgradeBtn = document.createElement('button');
+  upgradeBtn.textContent = 'Upgrade Bots';
+  upgradeBtn.onclick = handleUpgradeBots;
+  menu.appendChild(upgradeBtn);
+  
+  // Customization button
+  const customBtn = document.createElement('button');
+  customBtn.textContent = 'Customization';
+  customBtn.onclick = () => handleCustomization(container);
+  menu.appendChild(customBtn);
+  
+  return menu;
+}
+
+export function mountUI(container) {
+  container.innerHTML = '';
+  
+  // Create and append all UI components
+  const saveMenu = createSaveMenu();
+  const mainMenu = createMainMenu(container);
+  const pilotSelection = createPilotSelection();
+  
+  container.appendChild(saveMenu);
+  container.appendChild(mainMenu);
+  container.appendChild(pilotSelection);
 }

@@ -17,10 +17,14 @@ import { emit } from '../core/eventBus.js';
 import { SkinManager } from '../cosmetics/SkinManager.js';
 import { SynergyManager } from '../core/SynergyManager.js';
 import { ItemManager } from '../core/ItemManager.js';
+import { BattlefieldManager } from '../core/BattlefieldManager.js';
 
 const skinManager = new SkinManager();
 const synergyManager = new SynergyManager();
 const itemManager = new ItemManager();
+const battlefieldManager = new BattlefieldManager();
+
+battlefieldManager.generateBattlefield();
 
 function createBots() {
   // Player bots
@@ -68,6 +72,14 @@ function renderGrid(container) {
       cell.className = 'cell';
       cell.dataset.x = x;
       cell.dataset.y = y;
+
+      const tile = GameState.battle.grid[y - 1][x - 1];
+      if (tile.type === 'fortress') {
+        cell.style.backgroundColor = '#a1887f';
+      } else if (tile.type === 'swamp') {
+        cell.style.backgroundColor = '#4caf50';
+      }
+
       // Highlight valid moves/attacks
       if (selectedBot && validMoves.some(m => m.x === x && m.y === y)) {
         cell.style.background = '#2e7d32';
@@ -203,9 +215,9 @@ function renderGrid(container) {
   const synergyContainer = document.createElement('div');
   synergyContainer.className = 'synergy-container';
   const playerSynergies = synergyManager.calculateSynergies(GameState.player.bots.filter(b => b.alive));
-  synergyManager.applySynergies(GameState.player.bots, playerSynergies);
+  synergyManager.applySynergies(GameState.player.bots, playerSynergies, GameState.battle.grid);
   const enemySynergies = synergyManager.calculateSynergies(GameState.enemy.bots.filter(b => b.alive));
-  synergyManager.applySynergies(GameState.enemy.bots, enemySynergies);
+  synergyManager.applySynergies(GameState.enemy.bots, enemySynergies, GameState.battle.grid);
 
   const createSynergyList = (title, synergies) => {
     const list = document.createElement('div');

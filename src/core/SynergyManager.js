@@ -99,7 +99,7 @@ export class SynergyManager {
     return activeSynergies;
   }
 
-  applySynergies(bots, activeSynergies) {
+  applySynergies(bots, activeSynergies, grid) {
     // Reset all synergy effects first
     bots.forEach(bot => {
       bot.speedBonus = 0;
@@ -158,5 +158,15 @@ export class SynergyManager {
         }
       });
     }
+
+    // Apply tile effects
+    bots.forEach(bot => {
+        const tile = grid[bot.y - 1][bot.x - 1];
+        if (tile.type === 'fortress') {
+            bot.defenseBonus += 2;
+        } else if (tile.type === 'swamp') {
+            bot.speedBonus -= 1;
+        }
+    });
   }
 }

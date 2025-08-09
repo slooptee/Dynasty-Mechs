@@ -21,6 +21,10 @@ const skinManager = new SkinManager();
 const synergyManager = new SynergyManager();
 
 function createBots() {
+  // Initialize GameState structure if not exists
+  if (!GameState.player) GameState.player = {};
+  if (!GameState.enemy) GameState.enemy = {};
+  
   // Player bots
   GameState.player.bots = [
     new Bot({ id: 'p1', team: 'player', name: 'Guan Yu', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 2 }),
@@ -54,7 +58,7 @@ function renderGrid(container) {
     pixiDiv.style.pointerEvents = 'none';
     container.style.position = 'relative';
     container.appendChild(pixiDiv);
-    mountEffectsOverlay(pixiDiv);
+    mountEffectsOverlay(pixiDiv).catch(console.error);
   }
   container.innerHTML = '';
   const { rows, cols } = GameState.battle;
@@ -339,4 +343,30 @@ function enemyTurn(container) {
   GameState.battle.phase = 'player';
   emit('battle:render');
   playerTurn(container);
+}
+
+// Main battle initialization function
+export function startBattle(container) {
+  // Initialize battle state
+  GameState.battle = {
+    rows: 8,
+    cols: 6,
+    phase: 'player'
+  };
+  
+  // Create bots
+  createBots();
+  
+  // Set up event listeners
+  const handleRender = () => renderGrid(container);
+  document.addEventListener('battle:render', handleRender);
+  
+  // Initial render
+  renderGrid(container);
+  playerTurn(container);
+  
+  // Cleanup function
+  return () => {
+    document.removeEventListener('battle:render', handleRender);
+  };
 }

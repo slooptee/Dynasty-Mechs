@@ -19,11 +19,13 @@ import { SynergyManager } from '../core/SynergyManager.js';
 import { ItemManager } from '../core/ItemManager.js';
 import { BattlefieldManager } from '../core/BattlefieldManager.js';
 import { Pilot } from '../core/Pilot.js';
+import { SoundSystem } from '../core/SoundSystem.js';
 
 const skinManager = new SkinManager();
 const synergyManager = new SynergyManager();
 const itemManager = new ItemManager();
 const battlefieldManager = new BattlefieldManager();
+const soundSystem = new SoundSystem();
 
 battlefieldManager.generateBattlefield();
 
@@ -32,6 +34,8 @@ function createPilots() {
         new Pilot({ name: 'Guan Yu', description: 'A legendary warrior.', ability: (bot) => bot.attackBonus += 5 }),
         new Pilot({ name: 'Zhuge Liang', description: 'A master strategist.', ability: (bot) => bot.abilityCooldown = 0 }),
         new Pilot({ name: 'Cao Cao', description: 'A cunning ruler.', ability: (bot) => bot.crit = 0.2 }),
+        new Pilot({ name: 'Lu Bu', description: 'A peerless warrior.', ability: (bot) => bot.damageReduction = 0.15 }),
+        new Pilot({ name: 'Sima Yi', description: 'A patient schemer.', ability: (bot) => bot.healBonus = 0.25 }),
     ];
 }
 
@@ -215,11 +219,16 @@ function renderGrid(container) {
           dmg *= 2;
           selectedBot.crit = false; // Crit is consumed
         }
-        bot.takeDamage(dmg);
+        bot.takeDamage(dmg, selectedBot);
+        const lifesteal = selectedBot.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+        if (lifesteal > 0) {
+            selectedBot.heal(dmg * lifesteal);
+        }
         if (selectedBot.attackAgainChance && Math.random() < selectedBot.attackAgainChance) {
-          bot.takeDamage(dmg); // Attack again
+          bot.takeDamage(dmg, selectedBot); // Attack again
         }
         lastAttackCell = { x: bot.x, y: bot.y };
+        soundSystem.playSound('attack');
         // PixiJS hit effect
         playHitEffect(bot.x, bot.y);
         selectedBot = null;
@@ -370,10 +379,15 @@ function enemyTurn(container) {
           dmg *= 2;
           bot.crit = false;
         }
-        target.takeDamage(dmg);
-        if (bot.attackAgainChance && Math.random() < bot.attackAgainChance) {
-          target.takeDamage(dmg); // Attack again
+        target.takeDamage(dmg, bot);
+        const lifesteal = bot.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+        if (lifesteal > 0) {
+            bot.heal(dmg * lifesteal);
         }
+        if (bot.attackAgainChance && Math.random() < bot.attackAgainChance) {
+          target.takeDamage(dmg, bot); // Attack again
+        }
+        soundSystem.playSound('attack');
         acted = true;
         continue;
       }
@@ -390,7 +404,11 @@ function enemyTurn(container) {
           dmg *= 2;
           bot.crit = false;
         }
-        target.takeDamage(dmg);
+        target.takeDamage(dmg, bot);
+        const lifesteal = bot.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+        if (lifesteal > 0) {
+            bot.heal(dmg * lifesteal);
+        }
         acted = true;
         continue;
       }

@@ -8,15 +8,19 @@ import { UpgradeManager } from '../core/UpgradeManager.js';
 import { Bot } from '../core/Bot.js';
 import { Item } from '../core/Item.js';
 import { ItemManager } from '../core/ItemManager.js';
+import { SoundSystem } from '../core/SoundSystem.js';
 
 const upgradeManager = new UpgradeManager();
 const itemManager = new ItemManager();
+const soundSystem = new SoundSystem();
 
 // Temp function to give player some items
 function createTestItems() {
     itemManager.addItem(new Item({ name: 'Power Sword', description: '+5 Attack', effects: { attack: 5 } }));
     itemManager.addItem(new Item({ name: 'Iron Shield', description: '+5 Defense', effects: { defense: 5 } }));
     itemManager.addItem(new Item({ name: 'Speed Boots', description: '+2 Speed', effects: { speed: 2 } }));
+    itemManager.addItem(new Item({ name: 'Vampiric Dagger', description: 'Heal for 20% of damage dealt', effects: { lifesteal: 0.2 } }));
+    itemManager.addItem(new Item({ name: 'Thornmail', description: 'Reflect 10% of damage taken', effects: { damageReflect: 0.1 } }));
 }
 
 createTestItems();
@@ -59,6 +63,7 @@ export function mountUI(container) {
                 availableUpgrades.forEach(upgrade => {
                     GameState.player.bots = upgradeManager.performUpgrade(GameState.player.bots, upgrade);
                 });
+                soundSystem.playSound('upgrade');
                 alert('Bots upgraded!');
             } else {
                 alert('No upgrades available.');

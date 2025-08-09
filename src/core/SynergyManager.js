@@ -2,52 +2,52 @@ export const synergyConfig = {
   factions: {
     Shu: {
       bonuses: [
-        { count: 2, description: 'All allies gain +1 Speed' },
-        { count: 3, description: 'All allies gain +2 Speed and 10% Dodge' }
+        { count: 2, description: 'All allies gain +1 Speed', effects: [{ stat: 'speedBonus', value: 1 }] },
+        { count: 3, description: 'All allies gain +2 Speed and 10% Dodge', effects: [{ stat: 'speedBonus', value: 2 }, { stat: 'dodge', value: 0.1 }] }
       ]
     },
     Wei: {
       bonuses: [
-        { count: 2, description: 'All allies gain +1 Defense' },
-        { count: 3, description: 'All allies gain +2 Defense and 10% Damage Reduction' }
+        { count: 2, description: 'All allies gain +1 Defense', effects: [{ stat: 'defenseBonus', value: 1 }] },
+        { count: 3, description: 'All allies gain +2 Defense and 10% Damage Reduction', effects: [{ stat: 'defenseBonus', value: 2 }, { stat: 'damageReduction', value: 0.1 }] }
       ]
     },
     Wu: {
       bonuses: [
-        { count: 2, description: 'All allies gain +1 Attack' },
-        { count: 3, description: 'All allies gain +2 Attack and their first attack is a guaranteed crit' }
+        { count: 2, description: 'All allies gain +1 Attack', effects: [{ stat: 'attackBonus', value: 1 }] },
+        { count: 3, description: 'All allies gain +2 Attack and their first attack is a guaranteed crit', effects: [{ stat: 'attackBonus', value: 2 }, { stat: 'crit', value: true }] }
       ]
     }
   },
   classes: {
     Assault: {
       bonuses: [
-        { count: 2, description: 'Assault bots gain +3 Attack' }
+        { count: 2, description: 'Assault bots gain +3 Attack', effects: [{ stat: 'attackBonus', value: 3 }] }
       ]
     },
     Sniper: {
       bonuses: [
-        { count: 2, description: 'Sniper bots have a 25% chance to attack again' }
+        { count: 2, description: 'Sniper bots have a 25% chance to attack again', effects: [{ stat: 'attackAgainChance', value: 0.25 }] }
       ]
     },
     Defender: {
       bonuses: [
-        { count: 2, description: 'Defender bots start battle with a shield' }
+        { count: 2, description: 'Defender bots start battle with a shield', effects: [{ stat: 'shielded', value: true }] }
       ]
     },
     Medic: {
         bonuses: [
-            { count: 2, description: 'Medic bots heal for 50% more' }
+            { count: 2, description: 'Medic bots heal for 50% more', effects: [{ stat: 'healBonus', value: 0.5 }] }
         ]
     },
     Scout: {
         bonuses: [
-            { count: 2, description: 'Scout bots gain +2 Speed' }
+            { count: 2, description: 'Scout bots gain +2 Speed', effects: [{ stat: 'speedBonus', value: 2 }] }
         ]
     },
     Engineer: {
         bonuses: [
-            { count: 2, description: 'Engineer bots start with their ability cooldown at 0' }
+            { count: 2, description: 'Engineer bots start with their ability cooldown at 0', effects: [{ stat: 'abilityCooldown', value: 0 }] }
         ]
     }
   }
@@ -113,49 +113,29 @@ export class SynergyManager {
 
     for (const faction in activeSynergies.factions) {
       const bonus = activeSynergies.factions[faction];
-      if (faction === 'Shu') {
-        if (bonus.count >= 3) {
-            bots.forEach(b => {
-                b.speedBonus += 2;
-                b.dodge += 0.1;
-            });
-        } else if (bonus.count >= 2) {
-            bots.forEach(b => b.speedBonus += 1);
-        }
-      }
-      if (faction === 'Wei') {
-        if (bonus.count >= 3) {
-            bots.forEach(b => {
-                b.defenseBonus += 2;
-                b.damageReduction += 0.1;
-            });
-        } else if (bonus.count >= 2) {
-            bots.forEach(b => b.defenseBonus += 1);
-        }
-      }
-      if (faction === 'Wu') {
-        if (bonus.count >= 3) {
-            bots.forEach(b => {
-                b.attackBonus += 2;
-                b.crit = true;
-            });
-        } else if (bonus.count >= 2) {
-            bots.forEach(b => b.attackBonus += 1);
-        }
-      }
+      bonus.effects.forEach(effect => {
+        bots.forEach(bot => {
+          if (typeof bot[effect.stat] === 'number') {
+            bot[effect.stat] += effect.value;
+          } else {
+            bot[effect.stat] = effect.value;
+          }
+        });
+      });
     }
 
     for (const botClass in activeSynergies.classes) {
       const bonus = activeSynergies.classes[botClass];
-      bots.forEach(bot => {
-        if (bot.class === botClass) {
-          if (botClass === 'Assault' && bonus.count >= 2) bot.attackBonus += 3;
-          if (botClass === 'Sniper' && bonus.count >= 2) bot.attackAgainChance = 0.25;
-          if (botClass === 'Defender' && bonus.count >= 2) bot.shielded = true;
-          if (botClass === 'Medic' && bonus.count >= 2) bot.healBonus = 0.5;
-          if (botClass === 'Scout' && bonus.count >= 2) bot.speedBonus += 2;
-          if (botClass === 'Engineer' && bonus.count >= 2) bot.abilityCooldown = 0;
-        }
+      bonus.effects.forEach(effect => {
+        bots.forEach(bot => {
+          if (bot.class === botClass) {
+            if (typeof bot[effect.stat] === 'number') {
+              bot[effect.stat] += effect.value;
+            } else {
+              bot[effect.stat] = effect.value;
+            }
+          }
+        });
       });
     }
 

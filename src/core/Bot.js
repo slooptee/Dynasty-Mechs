@@ -57,8 +57,13 @@ export class Bot {
     return this.speed + this.speedBonus + itemBonus;
   }
 
-  takeDamage(amount) {
+  takeDamage(amount, attacker) {
     if (Math.random() < this.dodge) return; // Dodge the attack
+
+    const damageReflect = this.items.reduce((acc, item) => acc + (item.effects.damageReflect || 0), 0);
+    if (attacker && damageReflect > 0) {
+        attacker.takeDamage(amount * damageReflect);
+    }
 
     let dmg = amount * (1 - this.damageReduction);
     if (this.shielded) {
@@ -116,7 +121,12 @@ export class Bot {
           const ny = this.y + dy;
           const enemy = enemies.find(e => e.alive && e.x === nx && e.y === ny);
           if (enemy) {
-            enemy.takeDamage(Math.round(this.finalAttack * 0.8));
+            const dmg = Math.round(this.finalAttack * 0.8);
+            enemy.takeDamage(dmg, this);
+            const lifesteal = this.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+            if (lifesteal > 0) {
+                this.heal(dmg * lifesteal);
+            }
             hit = true;
           }
         });
@@ -130,7 +140,12 @@ export class Bot {
         // Long-range attack: hit any enemy, higher cooldown
         const target = enemies.filter(e => e.alive).sort((a, b) => a.health - b.health)[0];
         if (target) {
-          target.takeDamage(this.finalAttack + 2);
+            const dmg = this.finalAttack + 2;
+            target.takeDamage(dmg, this);
+            const lifesteal = this.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+            if (lifesteal > 0) {
+                this.heal(dmg * lifesteal);
+            }
           this.abilityCooldown = 4;
           return { action: 'snipe', target };
         }

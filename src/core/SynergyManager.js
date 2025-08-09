@@ -168,5 +168,12 @@ export class SynergyManager {
             bot.speedBonus -= 1;
         }
     });
+
+    // Apply pilot abilities
+    bots.forEach(bot => {
+        if (bot.pilot && bot.pilot.ability) {
+            bot.pilot.ability(bot);
+        }
+    });
   }
 }

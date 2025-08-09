@@ -18,6 +18,7 @@ import { SkinManager } from '../cosmetics/SkinManager.js';
 import { SynergyManager } from '../core/SynergyManager.js';
 import { ItemManager } from '../core/ItemManager.js';
 import { BattlefieldManager } from '../core/BattlefieldManager.js';
+import { Pilot } from '../core/Pilot.js';
 
 const skinManager = new SkinManager();
 const synergyManager = new SynergyManager();
@@ -26,18 +27,35 @@ const battlefieldManager = new BattlefieldManager();
 
 battlefieldManager.generateBattlefield();
 
+function createPilots() {
+    GameState.pilots = [
+        new Pilot({ name: 'Guan Yu', description: 'A legendary warrior.', ability: (bot) => bot.attackBonus += 5 }),
+        new Pilot({ name: 'Zhuge Liang', description: 'A master strategist.', ability: (bot) => bot.abilityCooldown = 0 }),
+        new Pilot({ name: 'Cao Cao', description: 'A cunning ruler.', ability: (bot) => bot.crit = 0.2 }),
+    ];
+}
+
 function createBots() {
+  createPilots();
   // Player bots
-  GameState.player.bots = [
-    new Bot({ id: 'p1', team: 'player', name: 'Guan Yu', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 2 }),
-    new Bot({ id: 'p2', team: 'player', name: 'Guan Yu', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 4 }),
-    new Bot({ id: 'p3', team: 'player', name: 'Guan Yu', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 3 })
-  ];
+  const p1 = new Bot({ id: 'p1', team: 'player', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 2 });
+  p1.assignPilot(GameState.pilots[0]);
+  const p2 = new Bot({ id: 'p2', team: 'player', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 4 });
+  p2.assignPilot(GameState.pilots[0]);
+  const p3 = new Bot({ id: 'p3', team: 'player', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 3 });
+  p3.assignPilot(GameState.pilots[0]);
+  GameState.player.bots = [p1, p2, p3];
+
   // Enemy bots
+  const e1 = new Bot({ id: 'e1', team: 'enemy', type: 'defender', faction: 'Wei', class: 'Defender', health: 24, maxHealth: 24, attack: 6, defense: 4, speed: 2, x: 8, y: 2 });
+  e1.assignPilot(GameState.pilots[2]);
+  const e2 = new Bot({ id: 'e2', team: 'enemy', type: 'sniper', faction: 'Wu', class: 'Sniper', health: 18, maxHealth: 18, attack: 8, defense: 1, speed: 4, x: 8, y: 4 });
+  const e3 = new Bot({ id: 'e3', team: 'enemy', type: 'engineer', faction: 'Shu', class: 'Engineer', health: 20, maxHealth: 20, attack: 5, defense: 3, speed: 2, x: 8, y: 3 });
+  e3.assignPilot(GameState.pilots[1]);
   GameState.enemy.bots = [
-    Object.assign(new Bot({ id: 'e1', team: 'enemy', name: 'Cao Cao', type: 'defender', faction: 'Wei', class: 'Defender', health: 24, maxHealth: 24, attack: 6, defense: 4, speed: 2, x: 8, y: 2 }), { personality: 'defensive' }),
-    Object.assign(new Bot({ id: 'e2', team: 'enemy', name: 'Sun Quan', type: 'sniper', faction: 'Wu', class: 'Sniper', health: 18, maxHealth: 18, attack: 8, defense: 1, speed: 4, x: 8, y: 4 }), { personality: 'aggressive' }),
-    Object.assign(new Bot({ id: 'e3', team: 'enemy', name: 'Zhuge Liang', type: 'engineer', faction: 'Shu', class: 'Engineer', health: 20, maxHealth: 20, attack: 5, defense: 3, speed: 2, x: 8, y: 3 }), { personality: 'opportunist' })
+    Object.assign(e1, { personality: 'defensive' }),
+    Object.assign(e2, { personality: 'aggressive' }),
+    Object.assign(e3, { personality: 'opportunist' })
   ];
 }
 
@@ -119,8 +137,12 @@ function renderGrid(container) {
     e.preventDefault();
     const itemName = e.dataTransfer.getData('text/plain');
     const item = GameState.inventory.find(i => i.name === itemName);
+    const pilot = GameState.pilots.find(p => p.name === itemName);
     if (item) {
       itemManager.equipItem(item, bot);
+      emit('battle:render');
+    } else if (pilot) {
+      bot.assignPilot(pilot);
       emit('battle:render');
     }
   });

@@ -1,9 +1,8 @@
 // Bot class for battle
 export class Bot {
-  constructor({ id, team, name, type, health, maxHealth, attack, defense, speed, x, y, faction, class: botClass }) {
+  constructor({ id, team, type, health, maxHealth, attack, defense, speed, x, y, faction, class: botClass }) {
     this.id = id;
     this.team = team;
-    this.name = name;
     this.type = type;
     this.faction = faction;
     this.class = botClass;
@@ -29,6 +28,18 @@ export class Bot {
     this.healBonus = 0;
     this.attackAgainChance = 0;
     this.items = [];
+    this.pilot = null;
+  }
+
+  get name() {
+    return this.pilot ? `${this.pilot.name}'s ${this.type}` : this.type;
+  }
+
+  assignPilot(pilot) {
+    this.pilot = pilot;
+    if (this.pilot.ability) {
+      this.pilot.ability(this);
+    }
   }
 
   get finalAttack() {

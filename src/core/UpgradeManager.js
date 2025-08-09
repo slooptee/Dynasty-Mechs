@@ -2,26 +2,26 @@ export class UpgradeManager {
   checkForUpgrades(bots) {
     const upgradeableBots = {};
     for (const bot of bots) {
-      if (!upgradeableBots[bot.name]) {
-        upgradeableBots[bot.name] = {
+      if (!upgradeableBots[bot.type]) {
+        upgradeableBots[bot.type] = {
           1: [],
           2: [],
         };
       }
       if (bot.level === 1) {
-        upgradeableBots[bot.name][1].push(bot);
+        upgradeableBots[bot.type][1].push(bot);
       } else if (bot.level === 2) {
-        upgradeableBots[bot.name][2].push(bot);
+        upgradeableBots[bot.type][2].push(bot);
       }
     }
 
     const availableUpgrades = [];
-    for (const botName in upgradeableBots) {
-      if (upgradeableBots[botName][1].length >= 3) {
-        availableUpgrades.push({ name: botName, level: 1, bots: upgradeableBots[botName][1] });
+    for (const botType in upgradeableBots) {
+      if (upgradeableBots[botType][1].length >= 3) {
+        availableUpgrades.push({ type: botType, level: 1, bots: upgradeableBots[botType][1] });
       }
-      if (upgradeableBots[botName][2].length >= 3) {
-        availableUpgrades.push({ name: botName, level: 2, bots: upgradeableBots[botName][2] });
+      if (upgradeableBots[botType][2].length >= 3) {
+        availableUpgrades.push({ type: botType, level: 2, bots: upgradeableBots[botType][2] });
       }
     }
     return availableUpgrades;

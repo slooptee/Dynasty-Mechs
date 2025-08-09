@@ -135,4 +135,22 @@ export function mountUI(container) {
   }
   container.appendChild(saveMenu);
   container.appendChild(menu);
+
+  // Pilot selection UI
+    const pilotContainer = document.createElement('div');
+    pilotContainer.className = 'pilot-container';
+    const pilotTitle = document.createElement('h4');
+    pilotTitle.textContent = 'Available Pilots';
+    pilotContainer.appendChild(pilotTitle);
+    GameState.pilots.forEach(pilot => {
+        const pilotEl = document.createElement('div');
+        pilotEl.className = 'pilot';
+        pilotEl.textContent = `${pilot.name} (${pilot.description})`;
+        pilotEl.draggable = true;
+        pilotEl.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', pilot.name);
+        });
+        pilotContainer.appendChild(pilotEl);
+    });
+    container.appendChild(pilotContainer);
 }

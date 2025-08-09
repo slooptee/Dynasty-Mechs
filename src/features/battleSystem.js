@@ -225,101 +225,64 @@ function playerTurn(container) {
   container.appendChild(endBtn);
 }
 
-  const ai = new BehaviorTreeAI();
-  GameState.enemy.bots.forEach(bot => {
-    if (!bot.alive) return;
+const ai = new BehaviorTreeAI();
+
+function enemyTurn(container) {
+  // For engineer turret deploy, pass all bots as grid
+  const allBots = [...GameState.player.bots, ...GameState.enemy.bots];
+  for (const bot of GameState.enemy.bots) {
+    if (!bot.alive) continue;
     bot.tickCooldown();
+    let acted = false;
     // AI personality logic
     if (bot.personality === 'defensive') {
       // Use shield/heal if any ally is below 60% HP
       const lowAlly = GameState.enemy.bots.find(a => a.alive && a.health < a.maxHealth * 0.6);
       if (lowAlly) {
-        const ability = bot.useAbility(GameState.enemy.bots, GameState.player.bots);
-        if (ability) return;
+        acted = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
+        if (acted) continue;
       }
-    }
-    if (bot.personality === 'aggressive') {
-      // Always attack weakest player
+    } else if (bot.personality === 'aggressive') {
+      // Use area attack if available, else attack weakest
+      if (bot.type === 'assault' && bot.abilityCooldown === 0) {
+        acted = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
+        if (acted) continue;
+      }
+      // Use snipe if sniper
+      if (bot.type === 'sniper' && bot.abilityCooldown === 0) {
+        acted = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
+        if (acted) continue;
+      }
       const target = GameState.player.bots.filter(b => b.alive).sort((a, b) => a.health - b.health)[0];
       if (target) {
         target.takeDamage(bot.attack);
-        return;
+        acted = true;
+        continue;
       }
-    }
-    if (bot.personality === 'opportunist') {
+    } else if (bot.personality === 'opportunist') {
       // Use ability if off cooldown, else attack lowest HP
       if (bot.abilityCooldown === 0) {
-        const ability = bot.useAbility(GameState.enemy.bots, GameState.player.bots);
-        if (ability) return;
+        acted = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
+        if (acted) continue;
       }
       const target = GameState.player.bots.filter(b => b.alive).sort((a, b) => a.health - b.health)[0];
       if (target) {
         target.takeDamage(bot.attack);
-        return;
+        acted = true;
+        continue;
       }
     }
+
     // Fallback: default AI
-    ai.act({
-      self: bot,
-      enemies: GameState.player.bots.filter(b => b.alive)
-    });
-  });
-  checkVictory();
-  GameState.battle.phase = 'player';
-  emit('battle:render');
-  function enemyTurn(container) {
-    const ai = new BehaviorTreeAI();
-    // For engineer turret deploy, pass all bots as grid
-    const allBots = [...GameState.player.bots, ...GameState.enemy.bots];
-    GameState.enemy.bots.forEach(bot => {
-      if (!bot.alive) return;
-      bot.tickCooldown();
-      // AI personality logic
-      if (bot.personality === 'defensive') {
-        // Use shield/heal if any ally is below 60% HP
-        const lowAlly = GameState.enemy.bots.find(a => a.alive && a.health < a.maxHealth * 0.6);
-        if (lowAlly) {
-          const ability = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
-          if (ability) return;
-        }
-      }
-      if (bot.personality === 'aggressive') {
-        // Use area attack if available, else attack weakest
-        if (bot.type === 'assault' && bot.abilityCooldown === 0) {
-          const ability = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
-          if (ability) return;
-        }
-        // Use snipe if sniper
-        if (bot.type === 'sniper' && bot.abilityCooldown === 0) {
-          const ability = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
-          if (ability) return;
-        }
-        const target = GameState.player.bots.filter(b => b.alive).sort((a, b) => a.health - b.health)[0];
-        if (target) {
-          target.takeDamage(bot.attack);
-          return;
-        }
-      }
-      if (bot.personality === 'opportunist') {
-        // Use ability if off cooldown, else attack lowest HP
-        if (bot.abilityCooldown === 0) {
-          const ability = bot.useAbility(GameState.enemy.bots, GameState.player.bots, allBots);
-          if (ability) return;
-        }
-        const target = GameState.player.bots.filter(b => b.alive).sort((a, b) => a.health - b.health)[0];
-        if (target) {
-          target.takeDamage(bot.attack);
-          return;
-        }
-      }
-      // Fallback: default AI
+    if (!acted) {
       ai.act({
         self: bot,
         enemies: GameState.player.bots.filter(b => b.alive)
       });
-    });
-    checkVictory();
-    GameState.battle.phase = 'player';
-    emit('battle:render');
-    playerTurn(container);
+    }
   }
+  checkVictory();
+  GameState.battle.phase = 'player';
+  emit('battle:render');
+  playerTurn(container);
+}

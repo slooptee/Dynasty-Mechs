@@ -4,6 +4,10 @@ import { mountCustomizationUI } from '../features/skinManager.js';
 import { SkinManager } from '../cosmetics/SkinManager.js';
 import { SaveSystem } from '../core/SaveSystem.js';
 import { GameState } from '../core/GameState.js';
+import { UpgradeManager } from '../core/UpgradeManager.js';
+import { Bot } from '../core/Bot.js';
+
+const upgradeManager = new UpgradeManager();
 
 export function mountUI(container) {
   container.innerHTML = '';
@@ -33,6 +37,25 @@ export function mountUI(container) {
     window._customOverlay = customOverlay;
   };
   menu.appendChild(quickBtn);
+  // Upgrade button
+    const upgradeBtn = document.createElement('button');
+    upgradeBtn.textContent = 'Upgrade Bots';
+    upgradeBtn.onclick = () => {
+        if (GameState.player && GameState.player.bots) {
+            const availableUpgrades = upgradeManager.checkForUpgrades(GameState.player.bots);
+            if (availableUpgrades.length > 0) {
+                availableUpgrades.forEach(upgrade => {
+                    GameState.player.bots = upgradeManager.performUpgrade(GameState.player.bots, upgrade);
+                });
+                alert('Bots upgraded!');
+            } else {
+                alert('No upgrades available.');
+            }
+        } else {
+            alert('Start a battle to get some bots first!');
+        }
+    };
+    menu.appendChild(upgradeBtn);
   // Customization button
   const customBtn = document.createElement('button');
   customBtn.textContent = 'Customization';

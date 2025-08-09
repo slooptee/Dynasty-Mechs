@@ -7,6 +7,7 @@ export class Bot {
     this.type = type;
     this.faction = faction;
     this.class = botClass;
+    this.level = 1;
     this.health = health;
     this.maxHealth = maxHealth;
     this.attack = attack;
@@ -139,5 +140,13 @@ export class Bot {
   }
   tickCooldown() {
     if (this.abilityCooldown > 0) this.abilityCooldown--;
+  }
+
+  levelUp() {
+    this.level++;
+    this.maxHealth = Math.round(this.maxHealth * 1.8);
+    this.attack = Math.round(this.attack * 1.8);
+    this.defense = Math.round(this.defense * 1.8);
+    this.health = this.maxHealth;
   }
 }

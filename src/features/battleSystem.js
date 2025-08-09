@@ -24,8 +24,8 @@ function createBots() {
   // Player bots
   GameState.player.bots = [
     new Bot({ id: 'p1', team: 'player', name: 'Guan Yu', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 2 }),
-    new Bot({ id: 'p2', team: 'player', name: 'Liu Bei', type: 'medic', faction: 'Shu', class: 'Medic', health: 18, maxHealth: 18, attack: 4, defense: 2, speed: 4, x: 1, y: 4 }),
-    new Bot({ id: 'p3', team: 'player', name: 'Xiahou Dun', type: 'scout', faction: 'Wei', class: 'Scout', health: 16, maxHealth: 16, attack: 6, defense: 2, speed: 6, x: 1, y: 3 })
+    new Bot({ id: 'p2', team: 'player', name: 'Guan Yu', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 4 }),
+    new Bot({ id: 'p3', team: 'player', name: 'Guan Yu', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 3 })
   ];
   // Enemy bots
   GameState.enemy.bots = [
@@ -98,7 +98,7 @@ function renderGrid(container) {
   botEl.dataset.botId = bot.id;
   // Bot name
   const nameDiv = document.createElement('div');
-  nameDiv.textContent = bot.name;
+  nameDiv.textContent = bot.name + ' ' + '★'.repeat(bot.level);
   nameDiv.style.fontWeight = 'bold';
   nameDiv.style.fontSize = '0.8em';
   botEl.appendChild(nameDiv);
@@ -165,6 +165,9 @@ function renderGrid(container) {
           selectedBot.crit = false; // Crit is consumed
         }
         bot.takeDamage(dmg);
+        if (selectedBot.attackAgainChance && Math.random() < selectedBot.attackAgainChance) {
+          bot.takeDamage(dmg); // Attack again
+        }
         lastAttackCell = { x: bot.x, y: bot.y };
         // PixiJS hit effect
         playHitEffect(bot.x, bot.y);
@@ -183,7 +186,9 @@ function renderGrid(container) {
   const synergyContainer = document.createElement('div');
   synergyContainer.className = 'synergy-container';
   const playerSynergies = synergyManager.calculateSynergies(GameState.player.bots.filter(b => b.alive));
+  synergyManager.applySynergies(GameState.player.bots, playerSynergies);
   const enemySynergies = synergyManager.calculateSynergies(GameState.enemy.bots.filter(b => b.alive));
+  synergyManager.applySynergies(GameState.enemy.bots, enemySynergies);
 
   const createSynergyList = (title, synergies) => {
     const list = document.createElement('div');

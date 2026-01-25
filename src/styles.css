@@ -3,3 +3,49 @@ body {
   margin: 0;
   font-family: sans-serif;
 }
+
+/* UI overlay styles */
+.custom-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  display: none;
+}
+
+.custom-overlay.visible {
+  display: block;
+}
+
+/* Save menu styles */
+.save-menu {
+  display: flex;
+  gap: 1em;
+  justify-content: center;
+  margin: 1em 0;
+}
+
+/* Pilot container styles */
+.pilot-container {
+  margin: 1em 0;
+}
+
+.pilot-container h4 {
+  margin-bottom: 0.5em;
+}
+
+.pilot {
+  padding: 0.5em;
+  margin: 0.25em 0;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  cursor: move;
+  user-select: none;
+}
+
+.pilot:hover {
+  background: #e0e0e0;
+}

@@ -18,6 +18,10 @@ import { BehaviorTreeAI } from '../ai/AIController.js';
 import { emit } from '../core/eventBus.js';
 import { SkinManager } from '../cosmetics/SkinManager.js';
 import { SynergyManager } from '../core/SynergyManager.js';
+import { ItemManager } from '../core/ItemManager.js';
+import { BattlefieldManager } from '../core/BattlefieldManager.js';
+import { Pilot } from '../core/Pilot.js';
+import { SoundSystem } from '../core/SoundSystem.js';
 
 const skinManager = new SkinManager();
 const synergyManager = new SynergyManager();
@@ -28,17 +32,43 @@ function createBots() {
   if (!GameState.player) GameState.player = {};
   if (!GameState.enemy) GameState.enemy = {};
   
+const itemManager = new ItemManager();
+const battlefieldManager = new BattlefieldManager();
+const soundSystem = new SoundSystem();
+
+battlefieldManager.generateBattlefield();
+
+function createPilots() {
+    GameState.pilots = [
+        new Pilot({ name: 'Guan Yu', description: 'A legendary warrior.', ability: (bot) => bot.attackBonus += 5 }),
+        new Pilot({ name: 'Zhuge Liang', description: 'A master strategist.', ability: (bot) => bot.abilityCooldown = 0 }),
+        new Pilot({ name: 'Cao Cao', description: 'A cunning ruler.', ability: (bot) => bot.crit = 0.2 }),
+        new Pilot({ name: 'Lu Bu', description: 'A peerless warrior.', ability: (bot) => bot.damageReduction = 0.15 }),
+        new Pilot({ name: 'Sima Yi', description: 'A patient schemer.', ability: (bot) => bot.healBonus = 0.25 }),
+    ];
+}
+
+function createBots() {
+  createPilots();
   // Player bots
-  GameState.player.bots = [
-    new Bot({ id: 'p1', team: 'player', name: 'Guan Yu', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 2 }),
-    new Bot({ id: 'p2', team: 'player', name: 'Guan Yu', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 4 }),
-    new Bot({ id: 'p3', team: 'player', name: 'Guan Yu', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 3 })
-  ];
+  const p1 = new Bot({ id: 'p1', team: 'player', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 2 });
+  p1.assignPilot(GameState.pilots[0]);
+  const p2 = new Bot({ id: 'p2', team: 'player', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 4 });
+  p2.assignPilot(GameState.pilots[0]);
+  const p3 = new Bot({ id: 'p3', team: 'player', type: 'assault', faction: 'Shu', class: 'Assault', health: 22, maxHealth: 22, attack: 7, defense: 3, speed: 3, x: 1, y: 3 });
+  p3.assignPilot(GameState.pilots[0]);
+  GameState.player.bots = [p1, p2, p3];
+
   // Enemy bots
+  const e1 = new Bot({ id: 'e1', team: 'enemy', type: 'defender', faction: 'Wei', class: 'Defender', health: 24, maxHealth: 24, attack: 6, defense: 4, speed: 2, x: 8, y: 2 });
+  e1.assignPilot(GameState.pilots[2]);
+  const e2 = new Bot({ id: 'e2', team: 'enemy', type: 'sniper', faction: 'Wu', class: 'Sniper', health: 18, maxHealth: 18, attack: 8, defense: 1, speed: 4, x: 8, y: 4 });
+  const e3 = new Bot({ id: 'e3', team: 'enemy', type: 'engineer', faction: 'Shu', class: 'Engineer', health: 20, maxHealth: 20, attack: 5, defense: 3, speed: 2, x: 8, y: 3 });
+  e3.assignPilot(GameState.pilots[1]);
   GameState.enemy.bots = [
-    Object.assign(new Bot({ id: 'e1', team: 'enemy', name: 'Cao Cao', type: 'defender', faction: 'Wei', class: 'Defender', health: 24, maxHealth: 24, attack: 6, defense: 4, speed: 2, x: 8, y: 2 }), { personality: 'defensive' }),
-    Object.assign(new Bot({ id: 'e2', team: 'enemy', name: 'Sun Quan', type: 'sniper', faction: 'Wu', class: 'Sniper', health: 18, maxHealth: 18, attack: 8, defense: 1, speed: 4, x: 8, y: 4 }), { personality: 'aggressive' }),
-    Object.assign(new Bot({ id: 'e3', team: 'enemy', name: 'Zhuge Liang', type: 'engineer', faction: 'Shu', class: 'Engineer', health: 20, maxHealth: 20, attack: 5, defense: 3, speed: 2, x: 8, y: 3 }), { personality: 'opportunist' })
+    Object.assign(e1, { personality: 'defensive' }),
+    Object.assign(e2, { personality: 'aggressive' }),
+    Object.assign(e3, { personality: 'opportunist' })
   ];
 }
 
@@ -46,6 +76,24 @@ let selectedBot = null;
 let validMoves = [];
 let validAttacks = [];
 let lastAttackCell = null;
+
+function updateBattleUI(container) {
+  renderGrid(container);
+  if (GameState.battle.phase === 'player') {
+    playerTurn(container);
+  } else {
+    enemyTurn(container);
+  }
+}
+
+export function startBattle(container) {
+    battlefieldManager.generateBattlefield();
+    createBots();
+    GameState.battle.phase = 'player';
+    on('battle:render', () => updateBattleUI(container));
+    updateBattleUI(container);
+}
+
 function renderGrid(container) {
   // Mount PixiJS overlay if not present
   let overlay = container.querySelector('.pixi-overlay');
@@ -78,6 +126,14 @@ function renderGrid(container) {
       cell.className = 'cell';
       cell.dataset.x = x;
       cell.dataset.y = y;
+
+      const tile = GameState.battle.grid[y - 1][x - 1];
+      if (tile.type === 'fortress') {
+        cell.style.backgroundColor = '#a1887f';
+      } else if (tile.type === 'swamp') {
+        cell.style.backgroundColor = '#4caf50';
+      }
+
       // Highlight valid moves/attacks
       if (selectedBot && validMoves.some(m => m.x === x && m.y === y)) {
         cell.style.background = '#2e7d32';
@@ -118,6 +174,25 @@ function renderGrid(container) {
   const botEl = document.createElement('div');
   botEl.className = `bot ${bot.team}`;
   botEl.dataset.botId = bot.id;
+
+  botEl.addEventListener('dragover', (e) => {
+    e.preventDefault();
+  });
+
+  botEl.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const itemName = e.dataTransfer.getData('text/plain');
+    const item = GameState.inventory.find(i => i.name === itemName);
+    const pilot = GameState.pilots.find(p => p.name === itemName);
+    if (item) {
+      itemManager.equipItem(item, bot);
+      emit('battle:render');
+    } else if (pilot) {
+      bot.assignPilot(pilot);
+      emit('battle:render');
+    }
+  });
+
   // Bot name
   const nameDiv = document.createElement('div');
   nameDiv.textContent = bot.name + ' ' + '★'.repeat(bot.level);
@@ -186,14 +261,21 @@ function renderGrid(container) {
           dmg *= 2;
           selectedBot.crit = false; // Crit is consumed
         }
-        bot.takeDamage(dmg);
+        bot.takeDamage(dmg, selectedBot);
+        const lifesteal = selectedBot.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+        if (lifesteal > 0) {
+            selectedBot.heal(dmg * lifesteal);
+        }
         if (selectedBot.attackAgainChance && Math.random() < selectedBot.attackAgainChance) {
-          bot.takeDamage(dmg); // Attack again
+          bot.takeDamage(dmg, selectedBot); // Attack again
         }
         lastAttackCell = { x: bot.x, y: bot.y };
         // Enhanced PixiJS hit effect with damage type
         const damageType = selectedBot.type === 'engineer' ? 'electric' : 'physical';
         playEnhancedHitEffect(bot.x, bot.y, damageType);
+        soundSystem.playSound('attack');
+        // PixiJS hit effect
+        playHitEffect(bot.x, bot.y);
         selectedBot = null;
         validMoves = [];
         validAttacks = [];
@@ -209,9 +291,9 @@ function renderGrid(container) {
   const synergyContainer = document.createElement('div');
   synergyContainer.className = 'synergy-container';
   const playerSynergies = synergyManager.calculateSynergies(GameState.player.bots.filter(b => b.alive));
-  synergyManager.applySynergies(GameState.player.bots, playerSynergies);
+  synergyManager.applySynergies(GameState.player.bots, playerSynergies, GameState.battle.grid);
   const enemySynergies = synergyManager.calculateSynergies(GameState.enemy.bots.filter(b => b.alive));
-  synergyManager.applySynergies(GameState.enemy.bots, enemySynergies);
+  synergyManager.applySynergies(GameState.enemy.bots, enemySynergies, GameState.battle.grid);
 
   const createSynergyList = (title, synergies) => {
     const list = document.createElement('div');
@@ -221,13 +303,13 @@ function renderGrid(container) {
     for (const faction in synergies.factions) {
       const syn = synergies.factions[faction];
       const el = document.createElement('div');
-      el.textContent = `${faction} (${syn.count}): ${syn.description}`;
+      el.textContent = `${faction} (${syn.actualCount}): ${syn.description}`;
       list.appendChild(el);
     }
     for (const botClass in synergies.classes) {
       const syn = synergies.classes[botClass];
       const el = document.createElement('div');
-      el.textContent = `${botClass} (${syn.count}): ${syn.description}`;
+      el.textContent = `${botClass} (${syn.actualCount}): ${syn.description}`;
       list.appendChild(el);
     }
     return list;
@@ -236,6 +318,24 @@ function renderGrid(container) {
   synergyContainer.appendChild(createSynergyList('Player Synergies', playerSynergies));
   synergyContainer.appendChild(createSynergyList('Enemy Synergies', enemySynergies));
   container.appendChild(synergyContainer);
+
+  // Inventory UI
+    const inventoryContainer = document.createElement('div');
+    inventoryContainer.className = 'inventory-container';
+    const inventoryTitle = document.createElement('h4');
+    inventoryTitle.textContent = 'Inventory';
+    inventoryContainer.appendChild(inventoryTitle);
+    GameState.inventory.forEach(item => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'item';
+        itemEl.textContent = `${item.name} (${item.description})`;
+        itemEl.draggable = true;
+        itemEl.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', item.name);
+        });
+        inventoryContainer.appendChild(itemEl);
+    });
+    container.appendChild(inventoryContainer);
 }
 
 function checkVictory() {
@@ -284,12 +384,28 @@ function playerTurn(container) {
     validAttacks = [];
     GameState.battle.phase = 'enemy';
     emit('battle:render');
-    enemyTurn(container);
   };
   container.appendChild(endBtn);
 }
 
 const ai = new BehaviorTreeAI();
+
+function performAttack(bot, target) {
+    let dmg = bot.finalAttack;
+    if (bot.crit) {
+        dmg *= 2;
+        bot.crit = false;
+    }
+    target.takeDamage(dmg, bot);
+    const lifesteal = bot.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+    if (lifesteal > 0) {
+        bot.heal(dmg * lifesteal);
+    }
+    if (bot.attackAgainChance && Math.random() < bot.attackAgainChance) {
+        target.takeDamage(dmg, bot); // Attack again
+    }
+    soundSystem.playSound('attack');
+}
 
 function enemyTurn(container) {
   // For engineer turret deploy, pass all bots as grid
@@ -319,15 +435,7 @@ function enemyTurn(container) {
       }
       const target = GameState.player.bots.filter(b => b.alive).sort((a, b) => a.health - b.health)[0];
       if (target) {
-        let dmg = bot.finalAttack;
-        if (bot.crit) {
-          dmg *= 2;
-          bot.crit = false;
-        }
-        target.takeDamage(dmg);
-        if (bot.attackAgainChance && Math.random() < bot.attackAgainChance) {
-          target.takeDamage(dmg); // Attack again
-        }
+        performAttack(bot, target);
         acted = true;
         continue;
       }
@@ -339,12 +447,7 @@ function enemyTurn(container) {
       }
       const target = GameState.player.bots.filter(b => b.alive).sort((a, b) => a.health - b.health)[0];
       if (target) {
-        let dmg = bot.finalAttack;
-        if (bot.crit) {
-          dmg *= 2;
-          bot.crit = false;
-        }
-        target.takeDamage(dmg);
+        performAttack(bot, target);
         acted = true;
         continue;
       }
@@ -361,7 +464,6 @@ function enemyTurn(container) {
   checkVictory();
   GameState.battle.phase = 'player';
   emit('battle:render');
-  playerTurn(container);
 }
 
 // Main battle initialization function

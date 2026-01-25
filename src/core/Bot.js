@@ -1,9 +1,8 @@
 // Bot class for battle
 export class Bot {
-  constructor({ id, team, name, type, health, maxHealth, attack, defense, speed, x, y, faction, class: botClass }) {
+  constructor({ id, team, type, health, maxHealth, attack, defense, speed, x, y, faction, class: botClass }) {
     this.id = id;
     this.team = team;
-    this.name = name;
     this.type = type;
     this.faction = faction;
     this.class = botClass;
@@ -28,22 +27,42 @@ export class Bot {
     this.crit = false;
     this.healBonus = 0;
     this.attackAgainChance = 0;
+    this.items = [];
+    this.pilot = null;
+  }
+
+  get name() {
+    return this.pilot ? `${this.pilot.name}'s ${this.type}` : this.type;
+  }
+
+  assignPilot(pilot) {
+    this.pilot = pilot;
   }
 
   get finalAttack() {
-    return this.attack + this.attackBonus;
+    const itemBonus = this.items.reduce((acc, item) => acc + (item.effects.attack || 0), 0);
+    return this.attack + this.attackBonus + itemBonus;
   }
 
   get finalDefense() {
-    return this.defense + this.defenseBonus;
+    const itemBonus = this.items.reduce((acc, item) => acc + (item.effects.defense || 0), 0);
+    return this.defense + this.defenseBonus + itemBonus;
   }
 
   get finalSpeed() {
-    return this.speed + this.speedBonus;
+    const itemBonus = this.items.reduce((acc, item) => acc + (item.effects.speed || 0), 0);
+    return this.speed + this.speedBonus + itemBonus;
   }
 
-  takeDamage(amount) {
+  takeDamage(amount, attacker, isReflection = false) {
     if (Math.random() < this.dodge) return; // Dodge the attack
+
+    if (!isReflection) {
+        const damageReflect = this.items.reduce((acc, item) => acc + (item.effects.damageReflect || 0), 0);
+        if (attacker && damageReflect > 0) {
+            attacker.takeDamage(amount * damageReflect, this, true);
+        }
+    }
 
     let dmg = amount * (1 - this.damageReduction);
     if (this.shielded) {
@@ -60,6 +79,14 @@ export class Bot {
     const finalHeal = amount * (1 + this.healBonus);
     this.health = Math.min(this.maxHealth, this.health + finalHeal);
   }
+
+  applyLifesteal(damage) {
+    const lifesteal = this.items.reduce((acc, item) => acc + (item.effects.lifesteal || 0), 0);
+    if (lifesteal > 0) {
+        this.heal(damage * lifesteal);
+    }
+  }
+
   canAct() {
     return this.alive;
   }
@@ -101,7 +128,9 @@ export class Bot {
           const ny = this.y + dy;
           const enemy = enemies.find(e => e.alive && e.x === nx && e.y === ny);
           if (enemy) {
-            enemy.takeDamage(Math.round(this.finalAttack * 0.8));
+            const dmg = Math.round(this.finalAttack * 0.8);
+            enemy.takeDamage(dmg, this);
+            this.applyLifesteal(dmg);
             hit = true;
           }
         });
@@ -115,7 +144,9 @@ export class Bot {
         // Long-range attack: hit any enemy, higher cooldown
         const target = enemies.filter(e => e.alive).sort((a, b) => a.health - b.health)[0];
         if (target) {
-          target.takeDamage(this.finalAttack + 2);
+            const dmg = this.finalAttack + 2;
+            target.takeDamage(dmg, this);
+            this.applyLifesteal(dmg);
           this.abilityCooldown = 4;
           return { action: 'snipe', target };
         }

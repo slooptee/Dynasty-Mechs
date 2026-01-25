@@ -1,4 +1,6 @@
 import { mountEffectsOverlay, playHitEffect } from './effects.js';
+import { mountAdvancedEffectsOverlay, playEnhancedHitEffect, playAbilityEffect, createWeatherEffect } from './advancedEffects.js';
+import { TerrainSystem } from './terrainSystem.js';
 // Type advantage matrix: assault > sniper, sniper > engineer, engineer > assault
 const typeAdvantage = {
   assault: { sniper: 1.2, engineer: 0.8, assault: 1 },
@@ -23,6 +25,13 @@ import { SoundSystem } from '../core/SoundSystem.js';
 
 const skinManager = new SkinManager();
 const synergyManager = new SynergyManager();
+const terrainSystem = new TerrainSystem();
+
+function createBots() {
+  // Initialize GameState structure if not exists
+  if (!GameState.player) GameState.player = {};
+  if (!GameState.enemy) GameState.enemy = {};
+  
 const itemManager = new ItemManager();
 const battlefieldManager = new BattlefieldManager();
 const soundSystem = new SoundSystem();
@@ -100,9 +109,14 @@ function renderGrid(container) {
     pixiDiv.style.pointerEvents = 'none';
     container.style.position = 'relative';
     container.appendChild(pixiDiv);
-    mountEffectsOverlay(pixiDiv);
+    mountAdvancedEffectsOverlay(pixiDiv).catch(console.error);
   }
+  
   container.innerHTML = '';
+  
+  // Add terrain overlay first
+  const terrainOverlay = terrainSystem.renderTerrainOverlay(container, GameState.battle.rows, GameState.battle.cols);
+  
   const { rows, cols } = GameState.battle;
   const grid = document.createElement('div');
   grid.className = 'battle-grid';
@@ -133,11 +147,21 @@ function renderGrid(container) {
       }
       cell.onclick = () => {
         if (selectedBot && validMoves.some(m => m.x === x && m.y === y)) {
+          // Apply terrain effects when moving
+          const terrainEffects = terrainSystem.applyTerrainEffects(selectedBot, x, y);
+          
           selectedBot.x = x;
           selectedBot.y = y;
           selectedBot = null;
           validMoves = [];
           validAttacks = [];
+          
+          // Show terrain effects if any
+          if (terrainEffects.length > 0) {
+            console.log('Terrain effects:', terrainEffects);
+            // You could show these in a UI notification
+          }
+          
           emit('battle:render');
         }
       };
@@ -246,6 +270,9 @@ function renderGrid(container) {
           bot.takeDamage(dmg, selectedBot); // Attack again
         }
         lastAttackCell = { x: bot.x, y: bot.y };
+        // Enhanced PixiJS hit effect with damage type
+        const damageType = selectedBot.type === 'engineer' ? 'electric' : 'physical';
+        playEnhancedHitEffect(bot.x, bot.y, damageType);
         soundSystem.playSound('attack');
         // PixiJS hit effect
         playHitEffect(bot.x, bot.y);
@@ -437,4 +464,73 @@ function enemyTurn(container) {
   checkVictory();
   GameState.battle.phase = 'player';
   emit('battle:render');
+}
+
+// Main battle initialization function
+export function startBattle(container) {
+  // Initialize battle state
+  GameState.battle = {
+    rows: 8,
+    cols: 6,
+    phase: 'player'
+  };
+  
+  // Generate dynamic terrain
+  terrainSystem.generateTerrain(GameState.battle.rows, GameState.battle.cols);
+  
+  // Set random weather
+  const weathers = ['clear', 'rain', 'snow', 'sandstorm'];
+  const randomWeather = weathers[Math.floor(Math.random() * weathers.length)];
+  terrainSystem.setWeather(randomWeather);
+  
+  // Create weather effects if not clear
+  if (randomWeather !== 'clear') {
+    setTimeout(() => createWeatherEffect(randomWeather), 1000);
+  }
+  
+  // Create bots
+  createBots();
+  
+  // Set up event listeners
+  const handleRender = () => renderGrid(container);
+  document.addEventListener('battle:render', handleRender);
+  
+  // Initial render
+  renderGrid(container);
+  playerTurn(container);
+  
+  // Add terrain info panel
+  addTerrainInfoPanel(container);
+  
+  // Cleanup function
+  return () => {
+    document.removeEventListener('battle:render', handleRender);
+  };
+}
+
+function addTerrainInfoPanel(container) {
+  const panel = document.createElement('div');
+  panel.className = 'terrain-info-panel';
+  panel.style.position = 'absolute';
+  panel.style.top = '10px';
+  panel.style.right = '10px';
+  panel.style.background = 'rgba(0,0,0,0.8)';
+  panel.style.color = 'white';
+  panel.style.padding = '10px';
+  panel.style.borderRadius = '5px';
+  panel.style.fontSize = '12px';
+  panel.style.maxWidth = '200px';
+  panel.style.zIndex = '100';
+  
+  panel.innerHTML = `
+    <h4>Terrain Effects</h4>
+    <div>Weather: ${terrainSystem.weatherEffect}</div>
+    <div><strong>Forest:</strong> +15% dodge, 2x move cost</div>
+    <div><strong>Mountain:</strong> +30% defense, 3x move cost</div>
+    <div><strong>Water:</strong> -10% defense, 3x move cost</div>
+    <div><strong>Lava:</strong> Fire damage over time</div>
+    <div><strong>Ice:</strong> 15% chance to slip</div>
+  `;
+  
+  container.appendChild(panel);
 }

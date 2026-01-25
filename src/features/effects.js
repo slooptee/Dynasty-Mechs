@@ -4,30 +4,34 @@ import * as PIXI from 'pixi.js';
 let app = null;
 let container = null;
 
-export function mountEffectsOverlay(parent) {
+export async function mountEffectsOverlay(parent) {
   if (app) return app;
-  app = new PIXI.Application({
+  
+  app = new PIXI.Application();
+  await app.init({
     width: 8 * 40,
     height: 6 * 40,
-    transparent: true,
+    backgroundColor: 0x000000,
+    backgroundAlpha: 0,
     antialias: true,
     autoStart: true
   });
+  
   container = app.stage;
-  app.view.style.position = 'absolute';
-  app.view.style.top = '0';
-  app.view.style.left = '0';
-  app.view.style.pointerEvents = 'none';
-  parent.appendChild(app.view);
+  app.canvas.style.position = 'absolute';
+  app.canvas.style.top = '0';
+  app.canvas.style.left = '0';
+  app.canvas.style.pointerEvents = 'none';
+  parent.appendChild(app.canvas);
   return app;
 }
 
 export function playHitEffect(x, y) {
   if (!app) return;
   const g = new PIXI.Graphics();
-  g.beginFill(0xffff00, 0.7);
-  g.drawCircle(0, 0, 18);
-  g.endFill();
+  g.circle(0, 0, 18);
+  g.fill(0xffff00);
+  g.alpha = 0.7;
   g.x = (x - 1) * 40 + 20;
   g.y = (y - 1) * 40 + 20;
   container.addChild(g);
